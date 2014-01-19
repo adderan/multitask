@@ -25,9 +25,23 @@ joint_min <- function(x, y) { #x is matrix of feature vectors, y is matrix of ou
 	#theta <- matrix(runif(h*p), nrow=h, ncol=p);
 	u <- c(rep(0, times=n))
 	n <- dim(x)[[2]]
+	f <- dim(x)[[1]]
 	m <- dim(y)[[1]] 
 	for(l in 1:m) {
 		v <- theta%*%u
+		w <- c()
+		coefficients <- matrix(0, f, f)
+		for(q in 1:w) {
+			for(k in 1:f) {
+				sum <- 0
+				for(i in 1:n) {
+					sum += x[k, i]*x[q, i]
+				}
+
+
+				
+
+
 
 
 }
