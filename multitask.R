@@ -1,23 +1,29 @@
 
 generateData <- function(f, g, n, epsilon) { #f is total # of features in data, g is number of prediction problems, g is number of true predictors,  n is number of feature vectors 	
 	x <- matrix(runif(f*n), f, n)
-	w <- c(rep(1, times=g), rep(0, times=(f-g)))
+	w <- norm(c(rep(1, times=g), rep(0, times=(f-g))))
 	y <- matrix(runif(g*n), g, n)
+	x <- normalize_matrix(x)
+	y <- normalize_matrix(y)
 
 	for(k in 1:(g/2)) {
 		for(i in 1:n) {
 			y[k, i] <- w%*%(x[, i]) + rnorm(1, mean = 0, sd = epsilon)
 		}
-		#y[k, ] <- norm(y[k, ])
 
 
 	}
 	return(list(x, y))
-	#print(w)
 }
-normalize_data <- function(matr) {
+#normalizes each feature vector in matrix of feature vectors
+normalize_matrix <- function(matr) {
 	n <- dim(matr)[[2]]
 	for(i in 1:n) {
+		matr[ ,i] <- norm(matr[ ,i])
+	}
+	return(matr)
+}
+		
 		
 norm <- function(x) {
 	norm = 0;
@@ -49,8 +55,7 @@ w_min <- function(x, y, u, theta) {
 	f <- dim(x)[[1]]
 	m <- dim(y)[[1]] 
 	newU <- matrix(f, m)
-	#w <- matrix(rep(0, times=n*f), f, m)
-	#v <- matrix(f, m)
+	
 	for(l in 1:m) {
 		v <- theta%*%u[,l]
 		coefficients <- matrix(0, f, f)
@@ -101,10 +106,40 @@ theta_min <- function(x, y, u, theta, lambda) {
 	}
 	return(newTheta)
 }
+
+#calculates the derivative of the error plus regularizer. Used to confirm results of minimization with respect to w. Should be zero after minimization. 
+g_prime <- function(x, y, w, l) {
+	n <- dim(x)[[2]]
+	f <- dim(x)[[1]]
+	gprime <- c()
+	for(q in 1:f) {
+		gprimeq <- 0
+		for(i in 1:n) {
+			isum <- 0
+			isum <- isum + y[l, i]
+			isum <- isum - (rbind(w) %*% x[ , i])
+			isum <- isum - (rbind(v) %*% theta) %*% x[ , i]
+			isum <- isum * (-x[q, i])
+			gprimeq <- gprimeq + isum
+		}
+		gprimeq <- gprimeq + 2*w[[q]]
+		gprime[[q]] <- gprimeq
+	}
+
+}
+
 tests <- function() {
 	data <- generateData(100, 10, 100, 0.1)
-	print(data[[1]])
-	print(data[[2]])
+	x <- data[[1]]
+	y <- data[[2]]
+	f <- dim(x)[[1]]
+	n <- dim(x)[[2]]
+	m <- dim(y)[[1]]
+	h <- 20
+
+	u <- matrix(rep(0, times=f*m), nrow = f, ncol = m)
+	theta <- matrix(runif(f*h), nrow = f, ncol = h)
+	newU <- w_min(x, y, u, theta)
 
 }
 
