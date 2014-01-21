@@ -49,15 +49,17 @@ joint_min <- function(x, y, h) { #x is matrix of feature vectors, y is matrix of
 		theta <- theta_min(x, y, u, theta, lambda)
 	}
 }
-
+# l indexes into m, i indexes into n
 w_min <- function(x, y, u, theta) {
 	n <- dim(x)[[2]]
 	f <- dim(x)[[1]]
 	m <- dim(y)[[1]] 
-	newU <- matrix(f, m)
+	newU <- matrix(0, nrow = f, ncol = m)
+	wmatrix <- matrix(0, nrow = f, ncol = m)
 	
 	for(l in 1:m) {
-		v <- theta%*%u[,l]
+		v <- theta %*% cbind(u[,l])     #this is v subscript l
+		print(length(v))
 		coefficients <- matrix(0, f, f)
 		for(q in 1:f) {
 			for(k in 1:f) {
@@ -75,17 +77,23 @@ w_min <- function(x, y, u, theta) {
 			for(i in 1:n) {
 				val = val + y[l, i]*x[q, i]
 				#should v be v transpose?
-				vtimestheta <- v%*%theta
-				vtimesthetatimesxi <- vtimestheta%*%x[ ,i]
+				#vtimestheta <- rbind(v)%*%theta
+				#vtimesthetatimesxi <- vtimestheta%*%x[ ,i]
+				thetatimesxi <- theta %*% x[ , i]
+				vtimesthetatimesxi <- t(v) %*% thetatimesxi
+
 				val = val - vtimesthetatimesxi*x[q, i]
 			}
 			values[[q]] = val
 		}
-		w <- solve(coefficients, values)
+		w <- solve(coefficients, values)   #this is the minimum w for problem l
+		print(w)
+
+		wmatrix[,l] <- w
 		#should theta be theta transpose?
-		newU[, l] <- w %+% v%*%theta
+		newU[, l] <- w + t(v) %*% theta
 	}
-	return(newU)
+	return(list(newU, wmatrix))
 }
 
 theta_min <- function(x, y, u, theta, lambda) {
@@ -125,7 +133,7 @@ g_prime <- function(x, y, w, l) {
 		gprimeq <- gprimeq + 2*w[[q]]
 		gprime[[q]] <- gprimeq
 	}
-
+	return(gprime)
 }
 
 tests <- function() {
@@ -138,8 +146,11 @@ tests <- function() {
 	h <- 20
 
 	u <- matrix(rep(0, times=f*m), nrow = f, ncol = m)
-	theta <- matrix(runif(f*h), nrow = f, ncol = h)
-	newU <- w_min(x, y, u, theta)
+	theta <- matrix(runif(h*f), nrow = h, ncol = f)
+	w_min_out <- w_min(x, y, u, theta)
+	w <- (w_min_out[[2]])[, 1]
+	gprime <- g_prime(x, y, w, l)
+	print(gprime)
 
 }
 
