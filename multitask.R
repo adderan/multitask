@@ -105,7 +105,7 @@ theta_min <- function(x, y, u, theta, lambda) {
 
 	U <- matrix(f, m)
 	for(l in 1:m) {
-		U[ , l] <- lambda[l]*u[ , l]
+		U[ , l] <- sqrt(lambda[l])*u[ , l]
 	}
 	svd_of_U <- svd(U)
   v <- svd_of_u$u
@@ -151,20 +151,68 @@ find_w_error <- function(x, y, w, l, v, theta) {
 	g <- g + t(w) %*% w
 	return(g)
 }
+find_theta_error <- function(x, y, u, v, theta, lambda) {
+	n <- dim(x)[[2]]
+	m <- dim(y)[[1]]
+	error <- 0
+
+	for(l in 1:m) {
+		isum <- 0
+		for(i in 1:n) {
+			square_difference <- 0
+			square_difference <- square_difference + y[l, i]
+			square_difference <- square_difference - t(u[ , l]) %*% x[ , l]
+			square_difference <- square_difference * square_difference
+			isum <- isum + square_difference
+		}
+		regularizer <- lambda[[l]] * vector_magnitude(u[, l] - t(theta) %*% v[ , l])
+		error <- error + isum/n + regularizer
+	}
+	return(error)
+}
+vector_magnitude <- function(x) {
+	magnitude <- 0
+	n <- length(x)
+	for(i in 1:n) {
+		magnitude <- magnitude + x[[i]]*x[[i]]
+	}
+	return(magnitude)
+}
+graph_theta_error <- function(x, y, u, v, theta, lambda) {
+	min_error <- find_theta_error(x, y, u, v, theta, lambda)
+	error_dist <- c()
+	points <- 1000
+	for(i in 1:points) {
+		new_theta <- sample(theta)
+		error_dist[[i]] <- find_theta_error(x, y, u, v, theta, lambda)
+	}
+	error_dist <- c(error_dist, min_error)
+	dotchart(error_dist)
+}
+		
 #graphs the regularized error for the suspected miniumum wmin as well as surrounding w vectors to verify that wmin is the minimum. 
 graph_error_dist <- function(x, y, w, l, v, theta) {
 	min_error <- find_w_error(x, y, w, l, v, theta)
 	error_dist <- c()
+	permuted_error_dist <- c()
 	points <- 1000
 	for(j in 1:points) {
-		delta_w <- c(rnorm(dim(x)[[2]], mean=0, sd = 0.1))
+		delta_w <- c(rnorm(dim(x)[[2]], mean=0, sd = 0.001))
 		new_w <- w + delta_w
-		error_dist[[j]] <- find_w_error(x, y, new_w, l, v, theta)
+		append(error_dist, find_w_error(x, y, new_w, l, v, theta))
+		delta_w <- c(rnorm(dim(x)[[2]], mean=0, sd=0.005))
+		new_w <- w + delta_w
+		append(error_dist, find_w_error(x, y, new_w, l, v, theta))
+		permuted_error_dist[[j]] <- find_w_error(x, y, sample(w), l, v, theta)
 	}
-	labels <- c(rep("", times = points))
-	labels <- c(labels, "min")
+	colors = rep("blue", times = length(error_dist) + 1)
+	colors[length(error_dist) + 1] = "red" 
 	error_dist <- c(error_dist, min_error)
-	dotchart(error_dist, labels)
+	permuted_error_dist <- c(permuted_error_dist, min_error)
+	dotchart(error_dist, color = colors)
+	#dotchart(permuted_error_dist, color = colors)
+	print(min_error)
+
 
 }
 
@@ -186,6 +234,12 @@ tests <- function() {
 	gprime <- g_prime(x, y, w, l, v, theta)
 	print(gprime)
 	graph_error_dist(x, y, w, l, v, theta)
+
+	min_theta_out <- theta_min(x, y, u, theta, lambda)
+	graph_theta_error(x, y, u, v, min_theta_out, lambda)
+
+
+
 
 }
 
