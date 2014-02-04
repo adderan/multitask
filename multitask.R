@@ -39,14 +39,27 @@ joint_min <- function(x, y, h) { #x is matrix of feature vectors, y is matrix of
 	f <- dim(x)[[1]]
 	m <- dim(y)[[1]]
 	n <- dim(x)[[2]]
+	source("tests.R")
 
 
 	lambda <- c(rep(1, times=m))
 	theta <- matrix(runif(h*f), nrow=h, ncol=f);
 	u <- matrix(rep(0, times=f*m), f, m)
-	for(i in 1:1000) {
-		u <- w_min(x, y, u, theta)
+	for(i in 1:4) {
+		w_min_out <- w_min(x, y, u, theta)
+		u <- w_min_out[[1]]
+		w <- w_min_out[[2]]
+		print("after w minimization: ")
+		print(i)
+		print("theta error")
+		print(find_theta_error(x, y, u, theta, lambda))
+		print("w error")
+		print(find_w_error(x, y, w, 1, u, theta))
 		theta <- theta_min(x, y, u, theta, lambda)
+		#print("w error after theta minimization:")
+		#print(find_w_error(x, y, w, 1, u, theta))
+		#print("theta error before w minimization:")
+		#print(find_theta_error(x, y, u, theta, lambda))
 	}
 }
 # l indexes into m, i indexes into n
@@ -58,8 +71,8 @@ w_min <- function(x, y, u, theta) {
 	wmatrix <- matrix(0, nrow = f, ncol = m)
 	
 	for(l in 1:m) {
-		v <- theta %*% cbind(u[,l])     #this is v subscript l
-		print(length(v))
+		v <- theta %*% u[,l]    #this is v subscript l
+		#print(length(v))
 		coefficients <- matrix(0, f, f)
 		for(q in 1:f) {
 			for(k in 1:f) {

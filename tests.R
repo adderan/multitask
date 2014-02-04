@@ -1,8 +1,9 @@
 
 #calculates the derivative of the error plus regularizer. Used to confirm results of minimization with respect to w. Should be zero after minimization. 
-g_prime <- function(x, y, w, l, v, theta) {
+g_prime <- function(x, y, wmatrix, l, v, theta) {
 	n <- dim(x)[[2]]
 	f <- dim(x)[[1]]
+	w <- wmatrix[ , l]
 	gprime <- c()
 	for(q in 1:f) {
 		gprimeq <- 0
@@ -20,9 +21,11 @@ g_prime <- function(x, y, w, l, v, theta) {
 	return(gprime)
 }
 # finds the value of the regularized error for the w minimization. 
-find_w_error <- function(x, y, w, l, v, theta) {
+find_w_error <- function(x, y, wmatrix, l, u, theta) {
 	n <- dim(x)[[2]]
 	g <- 0
+	v <- theta %*% u[, l]
+	w <- wmatrix[,l]
 	for(i in 1:n) {
 		isum <- 0
 		isum <- isum + y[l, i]
@@ -54,8 +57,8 @@ find_theta_error <- function(x, y, u, theta, lambda) {
 	
 		error <- error + regularizer
 	}
-	print(base_error)
-	print(error)
+	#print(base_error)
+	#print(error)
 	return(error)
 }
 vector_magnitude <- function(x) {
@@ -93,7 +96,8 @@ graph_theta_error <- function(x, y, u, theta, lambda) {
 }
 		
 #graphs the regularized error for the suspected miniumum wmin as well as surrounding w vectors to verify that wmin is the minimum. 
-graph_error_dist <- function(x, y, w, l, v, theta) {
+graph_error_dist <- function(x, y, wmatrix, l, v, theta) {
+	w <- wmatrix [ , l]
 	min_error <- find_w_error(x, y, w, l, v, theta)
 	error_dist <- c()
 	permuted_error_dist <- c()
@@ -134,22 +138,37 @@ tests <- function() {
 	theta <- matrix(runif(h*f), nrow = h, ncol = f)
 	v <- theta %*% u[ , l]
 	w_min_out <- w_min(x, y, u, theta)
-	w <- (w_min_out[[2]])[, l]
+	w <- w_min_out[[2]]
 	u <- w_min_out[[1]]
 	lambda <- c(rep(1, times=m))
 
-	#gprime <- g_prime(x, y, w, l, v, theta)
-	#print(gprime)
+	print(find_w_error(x, y, w, l, u, theta))
+	gprime <- g_prime(x, y, w, l, v, theta)
+	print(gprime)
 	#graph_error_dist(x, y, w, l, v, theta)
 
 	
-	min_theta_out <- theta_min(x, y, u, theta, lambda)
+	#min_theta_out <- theta_min(x, y, u, theta, lambda)
 	#print(u)
 	#print(min_theta_out)
-	print("Random thetas")
-	graph_theta_error(x, y, u, min_theta_out, lambda)
-	print("Real min theta")
-	print(find_theta_error(x, y, u, min_theta_out, lambda))
+	#print("Random thetas")
+	#graph_theta_error(x, y, u, min_theta_out, lambda)
+	#print("Real min theta")
+	#print(find_theta_error(x, y, u, min_theta_out, lambda))
 	
 }
+joint_min_test <- function() {
+	source("multitask.R")
+	data <- generateData(100, 10, 100, 0.1)
+	x <- data[[1]]
+	y <- data[[2]]
+	h <- 20
+	joint_min(x, y, h)
+}
+
+
+
+
+
+
 
