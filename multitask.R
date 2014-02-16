@@ -15,6 +15,7 @@ generateData <- function(f, g, n, epsilon) { #f is total # of features in data, 
 	}
 	return(list(x, y))
 }
+
 #normalizes each feature vector in matrix of feature vectors
 normalize_matrix <- function(matr) {
 	n <- dim(matr)[[2]]
@@ -35,10 +36,9 @@ norm <- function(x) {
 }
 
 
-joint_min <- function(x, y, h) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
-	f <- dim(x)[[1]]
+joint_min <- function(X, y, h) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
 	m <- dim(y)[[1]]
-	n <- dim(x)[[2]]
+	f <- dim(y)[[2]]
 	source("tests.R")
 
 
@@ -46,7 +46,7 @@ joint_min <- function(x, y, h) { #x is matrix of feature vectors, y is matrix of
 	theta <- matrix(runif(h*f), nrow=h, ncol=f);
 	u <- matrix(rep(0, times=f*m), f, m)
 	for(i in 1:4) {
-		w_min_out <- w_min(x, y, u, theta)
+		w_min_out <- w_min(X, y, u, theta)
 		u <- w_min_out[[1]]
 		w <- w_min_out[[2]]
 		print("after w minimization: ")
@@ -62,55 +62,82 @@ joint_min <- function(x, y, h) { #x is matrix of feature vectors, y is matrix of
 		#print(find_theta_error(x, y, u, theta, lambda))
 	}
 }
-# l indexes into m, i indexes into n
+#finds minimum w vector for prediction problem l. x and y should be the lth data matrix and the lth output
 w_min <- function(x, y, u, theta) {
+	#n <- dim(x)[[2]]
 	n <- dim(x)[[2]]
 	f <- dim(x)[[1]]
-	m <- dim(y)[[1]] 
-	newU <- matrix(0, nrow = f, ncol = m)
-	wmatrix <- matrix(0, nrow = f, ncol = m)
+	#newU <- matrix(0, nrow = f, ncol = m)
+	newU <- c(rep(0, times=f))
+	#wmatrix <- matrix(0, nrow = f, ncol = m)
 	
-	for(l in 1:m) {
-		v <- theta %*% u[,l]    #this is v subscript l
+	#for(l in 1:m) {
+		#x <- X[[l]] #choose data for l-th prediction problem
+		#n <- dim(x)[[2]]
+	v <- theta %*% u    #this is v subscript l
 		#print(length(v))
-		coefficients <- matrix(0, f, f)
-		for(q in 1:f) {
-			for(k in 1:f) {
-				sum <- 0
-				for(i in 1:n) {
-					sum <- sum + x[k, i]*x[q, i]
-				}
-				if(k == q) sum <- sum + 2
-				coefficients[q, k] = sum
-			}
-		}
-		values <- c()
-		for(q in 1:f) {
-			val <- 0
+	coefficients <- matrix(0, f, f)
+	for(q in 1:f) {
+		for(k in 1:f) {
+			sum <- 0
 			for(i in 1:n) {
-				val = val + y[l, i]*x[q, i]
-				#should v be v transpose?
-				#vtimestheta <- rbind(v)%*%theta
-				#vtimesthetatimesxi <- vtimestheta%*%x[ ,i]
-				thetatimesxi <- theta %*% x[ , i]
-				vtimesthetatimesxi <- t(v) %*% thetatimesxi
-
-				val = val - vtimesthetatimesxi*x[q, i]
+				sum <- sum + x[k, i]*x[q, i]
 			}
-			values[[q]] = val
+			if(k == q) sum <- sum + 2
+			coefficients[q, k] = sum
 		}
-		w <- solve(coefficients, values)   #this is the minimum w for problem l
-		#print(w)
-
-		wmatrix[,l] <- w
-		#should theta be theta transpose?
-		newU[, l] <- w + t(theta) %*% v
 	}
-	
+	values <- c()
+	for(q in 1:f) {
+		val <- 0
+		for(i in 1:n) {
+			val = val + y[[i]]*x[q, i]
+			thetatimesxi <- theta %*% x[ , i]
+			vtimesthetatimesxi <- t(v) %*% thetatimesxi
 
-	return(list(newU, wmatrix))
+			val = val - vtimesthetatimesxi*x[q, i]
+		}
+		values[[q]] = val
+	}
+	w <- solve(coefficients, values)   #this is the minimum w for problem l
+
+
+	#newU[, l] <- w + t(theta) %*% v
+
+	#return(list(newU, wmatrix))
+	return(list(w, v))
 }
-
+w_min_matrix <- function(X, y, u, theta) {
+	b <- 2
+	#print(X[[b]])
+	h <- dim(theta)[[1]]
+	m <- length(X)
+	f <- dim(X[[1]])[[2]]
+	W.hat <- matrix(0, f, m)
+	V.hat <- matrix(0, h, m)
+	for(l in 1:m) {
+		X_l <- X[[l]]
+		y_l <- y[[l]]
+		u_l <- u[, l]
+		print(l)
+		w_min_out <- w_min(t(X_l), y_l, u_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
+		W.hat[ , l] <- w_min_out$w
+		V.hat[ , l] <- w_min_out$v
+	}
+	return(list(W.hat, v.hat, theta))
+}
+ando_test_output <- function(data, h) {
+	#X <- data$X.list
+	#y <- data$y.list
+	m <- length(data$X.list)
+	p <- dim(data$X.list[[1]])[[2]]
+	print(m)
+	print(p)
+	u <- matrix(0, p, m)
+	theta <- matrix(runif(h*p), h, p)
+	return(w_min_matrix(data$X.list, data$y.list, u, theta))
+}
+			
 theta_min <- function(x, y, u, theta, lambda) {
 	f <- dim(x)[[1]]
 	m <- dim(u)[[2]]
@@ -129,4 +156,5 @@ theta_min <- function(x, y, u, theta, lambda) {
 	}
 	return(newTheta)
 }
+
 

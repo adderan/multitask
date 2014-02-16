@@ -112,6 +112,14 @@ pert.sol <- function( X, y, w.hat, v.hat, Theta.hat, lambda=1, tol=1e-5 )
 main <- function()
   {
     mydata <- test1.data()
+	source("multitask.R")
+	h <- 10
+	output <- ando_test_output(mydata, h)
+	W.hat <- output$W.hat
+	V.hat <- output$V.hat
+	Theta.hat <- output$Theta.hat
+
+	#W.hat <- w_min(
 
     ## Train a model on (mydata$X.list[[i]], mydata$y.list[[i]]) prediction problems
     ## W.hat <- ...
