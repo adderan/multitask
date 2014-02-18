@@ -100,31 +100,29 @@ w_min <- function(x, y, u, theta) {
 		values[[q]] = val
 	}
 	w <- solve(coefficients, values)   #this is the minimum w for problem l
-
+	#print(w)
 
 	#newU[, l] <- w + t(theta) %*% v
 
 	#return(list(newU, wmatrix))
-	return(list(w, v))
+	return(w)
 }
 w_min_matrix <- function(X, y, u, theta) {
-	b <- 2
-	#print(X[[b]])
 	h <- dim(theta)[[1]]
 	m <- length(X)
 	f <- dim(X[[1]])[[2]]
 	W.hat <- matrix(0, f, m)
-	V.hat <- matrix(0, h, m)
+	#V.hat <- matrix(0, h, m)
 	for(l in 1:m) {
 		X_l <- X[[l]]
 		y_l <- y[[l]]
 		u_l <- u[, l]
 		print(l)
 		w_min_out <- w_min(t(X_l), y_l, u_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
-		W.hat[ , l] <- w_min_out$w
-		V.hat[ , l] <- w_min_out$v
+		print(dim(W.hat))
+		W.hat[ , l] <- w_min_out
 	}
-	return(list(W.hat, v.hat, theta))
+	return(W.hat)
 }
 ando_test_output <- function(data, h) {
 	#X <- data$X.list
@@ -134,15 +132,24 @@ ando_test_output <- function(data, h) {
 	print(m)
 	print(p)
 	u <- matrix(0, p, m)
+	mat <- array(runif(h*p), dim=c(h,p))
+	#theta <- qr.Q(qr(mat))
+	#print(t(theta) %*% theta)
+	#print(dim(theta))
+	lambda <- c(rep(1, times=m))
 	theta <- matrix(runif(h*p), h, p)
-	return(w_min_matrix(data$X.list, data$y.list, u, theta))
+	V.hat <- theta %*% u
+	W.hat <- w_min_matrix(data$X.list, data$y.list, u, theta)
+	u <- W.hat + t(theta) %*% V.hat
+	theta <- theta_min(u, p, m, h, lambda)
+	V.hat <- theta %*% u
+	W.hat <- w_min_matrix(data$X.list, data$y.list, u, theta)
+	
+
+	return(list(W.hat = W.hat, V.hat = V.hat, Theta.hat = theta))
 }
 			
-theta_min <- function(x, y, u, theta, lambda) {
-	f <- dim(x)[[1]]
-	m <- dim(u)[[2]]
-	h <- dim(theta)[[1]]
-
+theta_min <- function(u, f, m, h, lambda) {
 	U <- matrix(1, f, m)
 	for(l in 1:m) {
 		U[ , l] <- sqrt(lambda[[l]])*u[ , l]
