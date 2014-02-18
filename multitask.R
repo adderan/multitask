@@ -141,9 +141,9 @@ ando_test_output <- function(data, h) {
 	V.hat <- theta %*% u
 	W.hat <- w_min_matrix(data$X.list, data$y.list, u, theta)
 	u <- W.hat + t(theta) %*% V.hat
-	theta <- theta_min(u, p, m, h, lambda)
-	V.hat <- theta %*% u
-	W.hat <- w_min_matrix(data$X.list, data$y.list, u, theta)
+	#theta <- theta_min(u, p, m, h, lambda)
+	#V.hat <- theta %*% u
+	#W.hat <- w_min_matrix(data$X.list, data$y.list, u, theta)
 	
 
 	return(list(W.hat = W.hat, V.hat = V.hat, Theta.hat = theta))
