@@ -107,25 +107,46 @@ pert.sol <- function( X, y, w.hat, v.hat, Theta.hat, lambda=1, tol=1e-5 )
         if( f0 - f2 > tol )
           cat( "Perturbing v[", j, "] in the negative direction yields the following improvement:", f0-f2, "\n" )
       }
+
+    ## Perturb Theta, by considering all pairs of axes and performing a slight
+    ##   positive and a slight negative rotation in the associated 2-D planes
+    h <- nrow(Theta.hat)
+    for( i in 1:(h-1) )
+      for( j in (i+1):h )
+        {
+          ## Positive rotation
+          P1 <- diag( h ); P1[i,j] <- tol; P1[j,i] <- -tol
+          T1 <- P1 %*% Theta.hat
+          f1 <- f.obj1( X, y, w.hat, v.hat, T1, lambda )
+          if( f0 - f1 > tol )
+            cat( "Positive rotation in (", i, ",", j, ") plane yields the following improvement:", f0-f1, "\n" )
+
+          ## Negative rotation
+          P2 <- diag( h ); P2[i,j] <- -tol; P2[j,i] <- tol
+          T2 <- P2 %*% Theta.hat
+          f2 <- f.obj1( X, y, w.hat, v.hat, T2, lambda )
+          if( f0 - f2 > tol )
+            cat( "Negative rotation in (", i, ",", j, ") plane yields the following improvement:", f0-f2, "\n" )
+        }
   }
 
 main <- function()
   {
     mydata <- test1.data()
-	source("multitask.R")
-	h <- 10
-	output <- ando_test_output(mydata, h)
-	W.hat <- output$W.hat
-	V.hat <- output$V.hat
-	Theta.hat <- output$Theta.hat
-
-	#W.hat <- w_min(
 
     ## Train a model on (mydata$X.list[[i]], mydata$y.list[[i]]) prediction problems
     ## W.hat <- ...
     ## V.hat <- ...
     ## Theta.hat <- ...
 
+    ## ------------------
+    ## For debug purposes, use the true values
+    W.hat <- mydata$W
+    V.hat <- mydata$V
+    Theta.hat <- mydata$Theta
+    ## End of: for debug purposes...
+    ## ==================
+    
     ## Evaluate the objective at the solution
     val <- f.obj( mydata$X.list, mydata$y.list, W.hat, V.hat, Theta.hat, 1 )
     cat( "Joint objective value =", val, "\n" )
