@@ -133,7 +133,12 @@ pert.sol <- function( X, y, w.hat, v.hat, Theta.hat, lambda=1, tol=1e-5 )
 main <- function()
   {
     mydata <- test1.data()
-
+	h <- 10
+	source("multitask.R")
+	out <- ando_test_output(mydata, h)
+	W.hat <- out$W.hat
+	V.hat <- out$V.hat
+	Theta.hat <- out$Theta.hat
     ## Train a model on (mydata$X.list[[i]], mydata$y.list[[i]]) prediction problems
     ## W.hat <- ...
     ## V.hat <- ...
@@ -141,9 +146,9 @@ main <- function()
 
     ## ------------------
     ## For debug purposes, use the true values
-    W.hat <- mydata$W
-    V.hat <- mydata$V
-    Theta.hat <- mydata$Theta
+    #W.hat <- mydata$W
+    #V.hat <- mydata$V
+    #Theta.hat <- mydata$Theta
     ## End of: for debug purposes...
     ## ==================
     
