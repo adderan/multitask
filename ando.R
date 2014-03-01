@@ -118,14 +118,14 @@ pert.sol <- function( X, y, w.hat, v.hat, Theta.hat, lambda=1, tol=1e-5 )
           P1 <- diag( h ); P1[i,j] <- tol; P1[j,i] <- -tol
           T1 <- P1 %*% Theta.hat
           f1 <- f.obj1( X, y, w.hat, v.hat, T1, lambda )
-          if( f0 - f1 > tol )
+          if( f0 > f1 )
             cat( "Positive rotation in (", i, ",", j, ") plane yields the following improvement:", f0-f1, "\n" )
 
           ## Negative rotation
           P2 <- diag( h ); P2[i,j] <- -tol; P2[j,i] <- tol
           T2 <- P2 %*% Theta.hat
           f2 <- f.obj1( X, y, w.hat, v.hat, T2, lambda )
-          if( f0 - f2 > tol )
+          if(f0 > f2)
             cat( "Negative rotation in (", i, ",", j, ") plane yields the following improvement:", f0-f2, "\n" )
         }
   }
