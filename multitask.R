@@ -37,30 +37,25 @@ norm <- function(x) {
 
 
 joint_min <- function(X, y, h) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
-	m <- dim(y)[[1]]
-	f <- dim(y)[[2]]
-	source("tests.R")
+	m <- length(y)
+	f <- dim(X[[1]])[[1]]
+	print(f)
 
 
 	lambda <- c(rep(1, times=m))
-	theta <- matrix(runif(h*f), nrow=h, ncol=f);
+	Theta.hat <- matrix(runif(h*f), nrow=h, ncol=f);
 	u <- matrix(rep(0, times=f*m), f, m)
+	V.hat <- Theta.hat %*% u
 	for(i in 1:4) {
-		w_min_out <- w_min(X, y, u, theta)
-		u <- w_min_out[[1]]
-		w <- w_min_out[[2]]
-		print("after w minimization: ")
-		print(i)
-		print("theta error")
-		print(find_theta_error(x, y, u, theta, lambda))
-		print("w error")
-		print(find_w_error(x, y, w, 1, u, theta))
-		theta <- theta_min(x, y, u, theta, lambda)
-		#print("w error after theta minimization:")
-		#print(find_w_error(x, y, w, 1, u, theta))
-		#print("theta error before w minimization:")
-		#print(find_theta_error(x, y, u, theta, lambda))
+		V.hat <- Theta.hat %*% u
+		W.hat <- w_min_matrix(X, y, u, Theta.hat)
+		u <- W.hat + t(Theta.hat) %*% V.hat
+		
+		Theta.hat <- theta_min(x, y, u, Theta.hat, lambda)
 	}
+	source("ando.R")
+	f.obj(X, y, W.hat, V.hat, Theta.hat) 
+
 }
 #finds minimum w vector for prediction problem l. x and y should be the lth data matrix and the lth output
 w_min <- function(x, y, u, theta) {
