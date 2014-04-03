@@ -36,7 +36,7 @@ norm <- function(x) {
 }
 
 
-joint_min <- function(X, y, h) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
+joint_min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
 	m <- length(y)
 	f <- dim(X[[1]])[[1]]
 	print(f)
@@ -46,15 +46,16 @@ joint_min <- function(X, y, h) { #x is matrix of feature vectors, y is matrix of
 	Theta.hat <- matrix(runif(h*f), nrow=h, ncol=f);
 	u <- matrix(rep(0, times=f*m), f, m)
 	V.hat <- Theta.hat %*% u
-	for(i in 1:4) {
+	for(i in 1:iters) {
 		V.hat <- Theta.hat %*% u
 		W.hat <- w_min_matrix(X, y, u, Theta.hat)
 		u <- W.hat + t(Theta.hat) %*% V.hat
 		
 		Theta.hat <- theta_min(x, y, u, Theta.hat, lambda)
 	}
-	source("ando.R")
-	f.obj(X, y, W.hat, V.hat, Theta.hat) 
+	#source("ando.R")
+	#f.obj(X, y, W.hat, V.hat, Theta.hat) 
+	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 
 }
 #finds minimum w vector for prediction problem l. x and y should be the lth data matrix and the lth output
