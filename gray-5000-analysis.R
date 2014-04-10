@@ -4,21 +4,43 @@
 #	u <- joint_min(X, y_aux, h)
 	
 #ridge.regression <- function(
-main <- function() {
+gray.analysis <- function() {
 	load("gray-5000.RData")
 	X.all <- cbind(X, Xu)
 	y.egfr <- X.all["EGFR",]
 	X.all <- X.all[-195,]
 	y.sens <- Y[,"Erlotinib"]
 
+        m <- length(y.egfr)
+        nproblems <- 2  #number of prediction problems to use. The i-th prediction problem is the i-th sample in X.all
+        nfeatures <- 100 #in case I don't want to use all of the features due to computation time. 
+        print(m)
+        X <- list()
+        y <- list()
+        #build list of X.all repeated m times
+        for(i in 1:nproblems) {
+          x.all.i <- matrix(unlist(X.all[,i]))
+          x.all.i.manual <- matrix(0, nfeatures, 1)
+          for(p in 1:nfeatures) {
+            x.all.i.manual[p,1] <- X.all[p,i]
+          }
+          X[[i]] <- x.all.i.manual
+          y[[i]] <- y.sens[[i]]
+          #print(dim(x.all.i))
+        }
+        
         #ando joint predictor
         source("multitask.R")
         source("ando.R")
-        min.out <- joint_min(X.all, y.egfr, 2)
+        min.out <- joint_min(X, y, 5, 2)
         W.hat <- min.out[["W.hat"]]
         V.hat <- min.out[["V.hat"]]
+        cat("Dimension of W.hat: ", dim(W.hat), "\n")
+        cat("Dimention of V.hat: ", dim(V.hat), "\n")
+        
         Theta.hat <- min.out[["Theta.hat"]]
-	pert.sol(X.all, y.egfr, W.hat, V.hat, Theta.hat)
+        mydata <- list(X.list = X, y.list = y)
+	ando.test(mydata, W.hat, V.hat, Theta.hat)
         
 
         ando_predictions <- t(W.hat) %*% X.all + t(V.hat) %*% Theta.hat %*% X.all
