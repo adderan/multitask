@@ -6,10 +6,14 @@
 #ridge regression is a standard algorithm that will be used for comparison.
 ridge.regression <- function(X, y, lambda) {
 	library(MASS)
+	X <- t(X)
 	a <- dim(X)[[1]]
 	b <- dim(X)[[2]]
+	cat("Dimension of X: ", dim(X), "\n")
+	cat("Length of y: ", length(y), "\n")
 
 	beta <- ginv(t(X) %*% X + lambda * diag(b)) %*% t(X) %*% y
+	cat("Length of Beta: ", length(beta), "\n")
 	return(beta)
 }
 ridge.objective <- function(X, y, beta) {
@@ -18,20 +22,13 @@ ridge.objective <- function(X, y, beta) {
 	reg <- sum(beta^2)
 	loss + lambda * reg
 }
-
-gray.analysis <- function(filename) {
-	load(filename)
-	X.all <- cbind(X, Xu)
-	y.egfr <- X.all["EGFR",]
-	X.all <- X.all[-195,]
-	y.sens <- Y[,"Erlotinib"]
-
-  m <- length(y.egfr)
+run.ando <- function(X.all, y.egfr) {
+	m <- length(y.egfr)
   nproblems <- 2  #number of prediction problems to use. The i-th prediction problem is the i-th sample in X.all
   nfeatures <- 100 #in case I don't want to use all of the features due to computation time. 
   print(m)
-  X <- list()
-  y <- list()
+  X.list <- list()
+  y.list <- list()
   #build list of X.all repeated m times
   for(i in 1:nproblems) {
   	x.all.i <- matrix(unlist(X.all[,i]))
@@ -39,15 +36,14 @@ gray.analysis <- function(filename) {
     for(p in 1:nfeatures) {
     	x.all.i.manual[p,1] <- X.all[p,i]
     }
-    X[[i]] <- x.all.i.manual
-    y[[i]] <- y.sens[[i]]
+    X.list[[i]] <- x.all.i.manual
+    y.list[[i]] <- y.egfr[[i]]
     #print(dim(x.all.i))
   }
-        
-  #ando joint predictor
-  source("multitask.R")
+   
+	source("multitask.R")
   source("ando.R")
-  min.out <- joint_min(X, y, 5, 2)
+  min.out <- joint_min(X.list, y.list, 5, 2)
   W.hat <- min.out[["W.hat"]]
   V.hat <- min.out[["V.hat"]]
   cat("Dimension of W.hat: ", dim(W.hat), "\n")
@@ -55,23 +51,36 @@ gray.analysis <- function(filename) {
         
   Theta.hat <- min.out[["Theta.hat"]]
   cat("Dimension of Theta.hat: ", dim(Theta.hat), "\n")
-  cat("Length of X: ", length(X), "\n")
-  cat("Length of y: ", length(y), "\n");
-  cat("Dimention of X[[1]]: ", dim(X[[1]]), "\n")
-  cat("Dimension of X[[2]]: ", dim(X[[2]]), "\n")
-  t.X <- lapply(X, t)
-  t.y <- lapply(y, t)
-  cat("Dimension of t.X[[1]]: ", dim(t.X[[1]]), "\n")
-  mydata <- list(X.list = t.X, y.list = t.y) #ando test code uses NxF data matrices
-	#ando.test(mydata, W.hat, V.hat, Theta.hat)
+  cat("Length of X.list: ", length(X.list), "\n")
+  cat("Length of y.list: ", length(y.list), "\n");
+  cat("Dimention of X.list[[1]]: ", dim(X.list[[1]]), "\n")
+  cat("Dimension of X.list[[2]]: ", dim(X.list[[2]]), "\n")
+  t.X.list <- lapply(X.list, t)
+  #t.y.list <- lapply(y.list, t)
+  cat("Dimension of t.X.list[[1]]: ", dim(t.X.list[[1]]), "\n")
+  mydata <- list(X.list = t.X.list, y.list = y.list) #ando test code uses NxF data matrices
+	ando.test(mydata, W.hat, V.hat, Theta.hat)
         
-	#cat("Ando Objective: ", f.obj(t.X, t.y, W.hat, V.hat, Theta.hat)
-  ando_predictions <- t(W.hat) %*% X.all + t(V.hat) %*% Theta.hat %*% X.all
+	#cat("Ando Objective: ", f.obj(t.X, t.y, W.hat, V.hat, Theta.hat))
+  #ando_predictions <- t(W.hat) %*% X.all + t(V.hat) %*% Theta.hat %*% X.all
+}
 
-	ridge <- ridge.regression(X.all, y.sens, 1)
+
+gray.analysis <- function(filename) {
+	load(filename)
+	X.labeled <- X
+	X.all <- cbind(X, Xu)
+	y.egfr <- X.all["EGFR",]
+	X.all <- X.all[-195,]
+	y.sens <- Y[,"Erlotinib"]
+
+       
+  run.ando(X.all, y.egfr) #ando joint predictor
+  beta <- ridge.regression(X.labeled, y.sens, 1)
+	cat("Ridge objective: ", ridge.objective(X.labeled, y.sens, beta), 1)
 
         
-  print(dim(ando_predictions))
+  #print(dim(ando_predictions))
               
 	
 }
