@@ -80,6 +80,8 @@ w_min <- function(x, y, u, theta) {
 		val <- 0
 		for(i in 1:n) {
 			val = val + y[[i]]*x[q, i]
+                        #cat("Length of x[,i]: ", length(x[,i]), "\n")
+                        #cat("Dimension of theta: ", dim(theta), "\n")
 			thetatimesxi <- theta %*% x[ , i]
 			vtimesthetatimesxi <- t(v) %*% thetatimesxi
 
@@ -91,7 +93,7 @@ w_min <- function(x, y, u, theta) {
 
 	return(w)
 }
-#find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix 
+#find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
 w_min_matrix <- function(X, y, u, theta) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
@@ -113,7 +115,7 @@ ando_test_output <- function(data, h) {
 	#X <- data$X.list
 	#y <- data$y.list
 	m <- length(data$X.list)
-	p <- dim(data$X.list[[1]])[[2]]
+	p <- dim(data$X.list[[1]])[[1]]
 	print(m)
 	print(p)
 	u <- matrix(0, p, m)

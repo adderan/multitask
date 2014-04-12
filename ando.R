@@ -168,12 +168,18 @@ ando.test <- function(mydata, W.hat, V.hat, Theta.hat)
       }
   }
 simulated.data.test <- function() {
-    mydata <- test1.data()
-    out <- ando_test_output(mydata, 10)
-    W.hat <- out$W.hat
-    V.hat <- out$V.hat
-    Theta.hat <- out$Theta.hat
+  source("multitask.R")
+  mydata <- test1.data()
+  X.list.t <- lapply(mydata$X.list, t)
+  mydata$X.list <- X.list.t
+  cat("Dimension of X.list: ", dim(mydata$X.list[[1]]), "\n")
+  out <- ando_test_output(mydata, 10)
+  W.hat <- out$W.hat
+  V.hat <- out$V.hat
+  Theta.hat <- out$Theta.hat
 
-    ando.test(mydata, W.hat, V.hat, Theta.hat)
+  mydata$X.list <- lapply(mydata$X.list, t)
+
+  ando.test(mydata, W.hat, V.hat, Theta.hat)
 }
     
