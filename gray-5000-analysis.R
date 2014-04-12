@@ -4,8 +4,8 @@
 #	u <- joint_min(X, y_aux, h)
 	
 #ridge.regression <- function(
-gray.analysis <- function() {
-	load("gray-5000.RData")
+gray.analysis <- function(filename) {
+	load(filename)
 	X.all <- cbind(X, Xu)
 	y.egfr <- X.all["EGFR",]
 	X.all <- X.all[-195,]
@@ -39,7 +39,15 @@ gray.analysis <- function() {
         cat("Dimention of V.hat: ", dim(V.hat), "\n")
         
         Theta.hat <- min.out[["Theta.hat"]]
-        mydata <- list(X.list = X, y.list = y)
+        cat("Dimension of Theta.hat: ", dim(Theta.hat), "\n")
+        cat("Length of X: ", length(X), "\n")
+        cat("Length of y: ", length(y), "\n");
+        cat("Dimention of X[[1]]: ", dim(X[[1]]), "\n")
+        cat("Dimension of X[[2]]: ", dim(X[[2]]), "\n")
+        t.X <- lapply(X, t)
+        t.y <- lapply(y, t)
+        cat("Dimension of t.X[[1]]: ", dim(t.X[[1]]), "\n")
+        mydata <- list(X.list = t.X, y.list = t.y) #ando test code uses NxF data matrices
 	ando.test(mydata, W.hat, V.hat, Theta.hat)
         
 
