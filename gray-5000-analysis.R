@@ -12,17 +12,33 @@ ridge.regression <- function(X, y, lambda) {
 	cat("Dimension of X: ", dim(X), "\n")
 	cat("Length of y: ", length(y), "\n")
 
-	beta <- ginv(t(X) %*% X + lambda * diag(b)) %*% t(X) %*% y
+	x1 <- ginv(t(X) %*% X + lambda * diag(b))
+	x2 <- t(X) %*% y
+	#print(x2)
+	beta <- x1 %*% x2
 	cat("Length of Beta: ", length(beta), "\n")
 	return(beta)
 }
-ridge.objective <- function(X, y, beta) {
+ridge.objective <- function(X, y, beta, lambda) {
 	z <- t(beta) %*% X
 	loss <- mean((y-z)^2)
 	reg <- sum(beta^2)
 	loss + lambda * reg
 }
-run.ando <- function(X.all, y.egfr) {
+remove.missing.data <- function(x, y) {
+	m <- 1
+	while(m < length(y)) {
+		if(is.na(y[[m]])) {
+			x <- x[,-m]
+			y <- y[-m]
+		}
+		else {
+			m <- m + 1
+		}
+	}
+	list(X = x, y = y)
+}
+run.ando <- function(X.all, y.egfr, y.sens) {
 	m <- length(y.egfr)
   nproblems <- 2  #number of prediction problems to use. The i-th prediction problem is the i-th sample in X.all
   nfeatures <- 100 #in case I don't want to use all of the features due to computation time. 
@@ -61,23 +77,52 @@ run.ando <- function(X.all, y.egfr) {
   mydata <- list(X.list = t.X.list, y.list = y.list) #ando test code uses NxF data matrices
 	ando.test(mydata, W.hat, V.hat, Theta.hat)
         
-	#cat("Ando Objective: ", f.obj(t.X, t.y, W.hat, V.hat, Theta.hat))
-  #ando_predictions <- t(W.hat) %*% X.all + t(V.hat) %*% Theta.hat %*% X.all
+	#make new weight vector for labeled data
+	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
+
 }
 
 
 gray.analysis <- function(filename) {
 	load(filename)
-	X.labeled <- X
-	X.all <- cbind(X, Xu)
+
+	max.features <- 1000
+	
+	y.sens <- Y[,"Erlotinib"]
+	na.removed <- remove.missing.data(X, y.sens)  #remove data that is missing from y list
+	X <- na.removed$X
+	y.sens <- na.removed$y
+
+	labeled.samples <- length(y.sens)
+
+	#test data
+	X.test <- X[1:max.features, 21:42]
+	X.unlabeled <- Xu[1:max.features,]
+	y.test <- y.sens[21:42]
+
+	#training data
+	X.train <- X[1:max.features, 1:21]
+	y.train <- y.sens[1:21]
+  
+
+	#data for ando algorithm
+	X.all <- cbind(X.train, X.unlabeled)
 	y.egfr <- X.all["EGFR",]
 	X.all <- X.all[-195,]
-	y.sens <- Y[,"Erlotinib"]
+		
+   
+  ando.out <- run.ando(X.all, y.egfr, y.train) #ando joint predictor
+	Theta.hat <- ando.out$Theta.hat
+	W.hat <- ando.out$W.hat
+	V.hat <- ando.out$V.hat
+	u <- W.hat + t(Theta.hat) %*% V.hat
+	W.labeled <- w_min(X.train, y.train, u, Theta.hat)
+	ando.predictor <- w.labeled + t(Theta.hat) %*% V.hat
+	
+	cat("Ando objective: ", f.obj1(X.test, y.test, w.labeled, V.hat, Theta.hat), "\n")
 
-       
-  run.ando(X.all, y.egfr) #ando joint predictor
-  beta <- ridge.regression(X.labeled, y.sens, 1)
-	cat("Ridge objective: ", ridge.objective(X.labeled, y.sens, beta), 1)
+  #beta <- ridge.regression(X.train, y.train, 1)
+	#cat("Ridge objective: ", ridge.objective(X.test, y.test, beta, 1), "\n")
 
         
   #print(dim(ando_predictions))
