@@ -173,7 +173,7 @@ simulated.data.test <- function() {
   X.list.t <- lapply(mydata$X.list, t)
   mydata$X.list <- X.list.t
   cat("Dimension of X.list: ", dim(mydata$X.list[[1]]), "\n")
-  out <- ando_test_output(mydata, 10)
+  out <- ando.test.output(mydata, 10)
   W.hat <- out$W.hat
   V.hat <- out$V.hat
   Theta.hat <- out$Theta.hat

@@ -59,7 +59,7 @@ run.ando <- function(X.all, y.egfr, y.sens) {
    
 	source("multitask.R")
   source("ando.R")
-  min.out <- joint_min(X.list, y.list, 5, 2)
+  min.out <- joint.min(X.list, y.list, 5, 2)
   W.hat <- min.out[["W.hat"]]
   V.hat <- min.out[["V.hat"]]
   cat("Dimension of W.hat: ", dim(W.hat), "\n")
