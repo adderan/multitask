@@ -52,7 +52,7 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 		W.hat <- w.min.matrix(X, y, u, Theta.hat)
 		u <- W.hat + t(Theta.hat) %*% V.hat
 		Theta.hat <- theta.min(u, f, m, h, lambda)
-        } 
+  } 
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 
 }
@@ -145,42 +145,77 @@ theta.min <- function(u, f, m, h, lambda) {
 	}
 	svd_of_U <- svd(U, nu = h)
  	v1 <- svd_of_U$u
-	newTheta <- matrix(0, nrow=h, ncol=f)
+	new.theta <- matrix(0, nrow=h, ncol=f)
 
 	for(k in 1:h) {
 		new.theta[k,] <- t(v1)[k,]
 	}
 	return(new.theta)
 }
-
+#calculate derivative of vT*theta*x for v minimization
+dhdVq <- function(x, q, theta) {
+	d <- 0
+	for(k in 1:length(x)) {
+		d <- d + x[k]*theta[q,k]
+	}
+	#cat("Dimension of dhdVq: ", length(d), "\n")
+	d
+}
+  
 #compute minimum v given w and theta. Used to minimize v for target problem.
-v.min <- function(x, y, w, theta, lambda) {
-	p <- dim(X)[[1]]
-	n <- dim(X)[[2]]
+v.min <- function(x, y, w, theta) {
+	p <- dim(x)[[1]]
+	n <- dim(x)[[2]]
 	h <- dim(theta)[[1]]
+	
+	cat("p = ", p, "\n")
 
 	coefficients <- matrix(0, h, h) 
 
 	for(q in 1:h) {
-		for(j in 1:h) {
-			coefficient.j <- 0
-			for(i in 1:n) {
-				dpdVq <- 0   #derivative of vT*theta*Xi with respect to Vq
-				for(k in 1:f) {
-					dpdVq <- dpdVq + theta[q,k]*x[k,i]
-				}
-				p <- 0
-				for(k in 1:f) {
-					p <- p + theta[j,k]*x[k,i]
-				}
-				coefficient.j <- coefficient.j + p*dpdVq
-			}
-			coefficients[q, j] <- coefficient.j
+		#coefficients.q <- c(length=h)
+		sum <- c(length=p)
+		for(i in 1:n) {
+			sum <- sum + x[,i]*dhdVq(x[,i], q, theta)
 		}
+		coefficients[q,] <- theta %*% sum
 	}
 	values <- c()
+	for(q in 1:h) {
+		value.q <- 0
+		for(i in 1:n) {
+			value.q <- (y[i] - t(w)%*%x[,i])*dhdVq(x[,i], q, theta)
+		}
+		values[q] <- value.q
+	}
+	v <- solve(coefficients, values)
 
-
+}
+v.prime <- function(x, y, w, v, theta) {
+	vprime <- c(length = length(v))
+	n <- dim(x)[[2]]
+	cat(length(v))
+	for(q in 1:length(v)) {
+		vprime.q <- 0
+		for(i in 1:n) {
+			vprime.q <- vprime.q + (t(w) %*% x[,i] + t(v) %*% theta %*% x[,i] - y[[i]])*dhdVq(x[,i],q,theta)
+		}
+		vprime[q] <- vprime.q
+	}
+	vprime
+}
+	
+optimize.labeled <- function(x, y, theta, iters) {
+	f <- dim(x)[[1]]
+	n <- dim(x)[[2]]
+	h <- dim(theta)[[1]]
+	v <- c(runif(h), -1, 1)
+	w <- c(runif(f), -1, 1)
+	for(i in 1:iters) {
+		w <- w.min(x, y, v, theta)
+		v <- v.min(x, y, w, theta)
+	}
+	list(W.hat = w, v.hat = v)
 }
 
 

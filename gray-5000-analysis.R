@@ -115,9 +115,7 @@ gray.analysis <- function(filename) {
 	Theta.hat <- ando.out$Theta.hat
 	W.hat <- ando.out$W.hat
 	V.hat <- ando.out$V.hat
-	u <- W.hat + t(Theta.hat) %*% V.hat
-	W.labeled <- w_min(X.train, y.train, u, Theta.hat)
-	ando.predictor <- w.labeled + t(Theta.hat) %*% V.hat
+	labeled.predictor <- optimize.labeled(X.test, y.test, Theta.hat, 1)
 	
 	cat("Ando objective: ", f.obj1(X.test, y.test, w.labeled, V.hat, Theta.hat), "\n")
 
