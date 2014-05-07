@@ -57,42 +57,27 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 
 }
 
-#finds minimum w-vector for one prediction problem. x and y should be the l-th data matrix and the lth output
-w.min <- function(x, y, v, theta) {
-	n <- dim(x)[[2]]  #the number of samples for this prediction problem
-	f <- dim(x)[[1]]  #the number of features. Features are the rows of the data matrix. 
-	#v <- theta %*% u    #this is v subscript l
 
-        #Compute the derivative of the loss function with respect to each feature. Set each derivative equal to zero and solve system of equations to find minimum w-vector. 
-	coefficients <- matrix(0, f, f) #coefficient matrix of the linear system. Each row contains the coefficients for one equation. The i-th row contains the coefficients of the derivative of the loss function with rexpect to x_i  
+w.prime <- function(x, y, w, v, theta) {
+	n <- dim(x)[[2]]
+	f <- dim(x)[[1]]
+	gprime <- c()
 	for(q in 1:f) {
-		for(k in 1:f) {
-			sum <- 0
-			for(i in 1:n) {
-				sum <- sum + x[k, i]*x[q, i]
-			}
-			if(k == q) sum <- sum + 2
-			coefficients[q, k] = sum
-		}
-	}
-	values <- c() #vector of the right-hand sides of each linear equation (the part not dependent on the x_i's.
-	for(q in 1:f) {
-		val <- 0
+		gprimeq <- 0
 		for(i in 1:n) {
-			val = val + y[[i]]*x[q, i]
-                        #cat("Length of x[,i]: ", length(x[,i]), "\n")
-                        #cat("Dimension of theta: ", dim(theta), "\n")
-			thetatimesxi <- theta %*% x[ , i]
-			vtimesthetatimesxi <- t(v) %*% thetatimesxi
-
-			val = val - vtimesthetatimesxi*x[q, i]
+			isum <- 0
+			isum <- isum + y[[i]]
+			isum <- isum - (t(w) %*% x[ , i])
+			isum <- isum - (t(v) %*% theta) %*% x[ , i]
+			isum <- isum * (-x[q, i])
+			gprimeq <- gprimeq + isum
 		}
-		values[[q]] = val
+		gprimeq <- gprimeq + 2*w[[q]]
+		gprime[[q]] <- gprimeq
 	}
-	w <- solve(coefficients, values)   #this is the minimum w for problem l
-
-	return(w)
+	return(gprime)
 }
+
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
 w.min.matrix <- function(X, y, u, theta) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
@@ -161,7 +146,42 @@ dhdVq <- function(x, q, theta) {
 	#cat("Dimension of dhdVq: ", length(d), "\n")
 	d
 }
-  
+#finds minimum w-vector for one prediction problem. x and y should be the l-th data matrix and the lth output
+w.min <- function(x, y, v, theta) {
+	n <- dim(x)[[2]]  #the number of samples for this prediction problem
+	f <- dim(x)[[1]]  #the number of features. Features are the rows of the data matrix. 
+	#v <- theta %*% u    #this is v subscript l
+
+        #Compute the derivative of the loss function with respect to each feature. Set each derivative equal to zero and solve system of equations to find minimum w-vector. 
+	coefficients <- matrix(0, f, f) #coefficient matrix of the linear system. Each row contains the coefficients for one equation. The i-th row contains the coefficients of the derivative of the loss function with rexpect to x_i  
+	for(q in 1:f) {
+		for(k in 1:f) {
+			sum <- 0
+			for(i in 1:n) {
+				sum <- sum + x[k, i]*x[q, i]
+			}
+			if(k == q) sum <- sum + 2
+			coefficients[q, k] = sum
+		}
+	}
+	values <- c() #vector of the right-hand sides of each linear equation (the part not dependent on the x_i's.
+	for(q in 1:f) {
+		val <- 0
+		for(i in 1:n) {
+			val = val + y[[i]]*x[q, i]
+                        #cat("Length of x[,i]: ", length(x[,i]), "\n")
+                        #cat("Dimension of theta: ", dim(theta), "\n")
+			thetatimesxi <- theta %*% x[ , i]
+			vtimesthetatimesxi <- t(v) %*% thetatimesxi
+
+			val = val - vtimesthetatimesxi*x[q, i]
+		}
+		values[[q]] = val
+	}
+	w <- solve(coefficients, values)   #this is the minimum w for problem l
+
+	return(w)
+}
 #compute minimum v given w and theta. Used to minimize v for target problem.
 v.min <- function(x, y, w, theta) {
 	p <- dim(x)[[1]]
@@ -174,11 +194,25 @@ v.min <- function(x, y, w, theta) {
 
 	for(q in 1:h) {
 		#coefficients.q <- c(length=h)
-		sum <- c(length=p)
-		for(i in 1:n) {
-			sum <- sum + x[,i]*dhdVq(x[,i], q, theta)
+		for(j in 1:h) {
+				coefficient.qj <- 0
+				for(i in 1:n) {
+					for(k in 1:p) {
+						coefficient.qj <- coefficient.qj + theta[j,k]*x[k,i]
+					}
+					coefficient.qj <- coefficient.qj * dhdVq(x[,i], q, theta)
+				}
+				if(q==j) {
+					coefficient.qj <- coefficient.qj + 2
+				}
+				coefficients[q,j] <- coefficient.qj
 		}
-		coefficients[q,] <- theta %*% sum
+		#sum <- c(length=p)
+		#for(i in 1:n) {
+		#	sum <- sum + x[,i]*dhdVq(x[,i], q, theta)
+		#}
+		#coefficients[q,] <- theta %*% sum
+		#coefficients[q,q] <- coefficients[q,q] + 2
 	}
 	values <- c()
 	for(q in 1:h) {

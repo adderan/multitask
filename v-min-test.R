@@ -21,7 +21,8 @@ v.min.test <- function() {
 	V.hat <- v.min(t(x), y, W.hat, Theta.hat)   ##length is h
 	cat("length of W.hat = ", length(W.hat), "\n")
 	tol <- 1e-5
-	
+	#cat(W.hat)
+	#print(w.prime(t(x), y, W.hat, V.hat, Theta.hat))
 	v1 <- V.hat
 	v2 <- V.hat
 	for(k in 1:h) v1[k] <- V.hat[k] + tol
