@@ -144,7 +144,7 @@ dhdVq <- function(x, q, theta) {
 		d <- d + x[k]*theta[q,k]
 	}
 	#cat("Dimension of dhdVq: ", length(d), "\n")
-	d
+	return(d)
 }
 #finds minimum w-vector for one prediction problem. x and y should be the l-th data matrix and the lth output
 w.min <- function(x, y, v, theta) {
@@ -189,6 +189,7 @@ v.min <- function(x, y, w, theta) {
 	h <- dim(theta)[[1]]
 	
 	cat("p = ", p, "\n")
+	print(x)
 
 	coefficients <- matrix(0, h, h) 
 
@@ -197,10 +198,12 @@ v.min <- function(x, y, w, theta) {
 		for(j in 1:h) {
 				coefficient.qj <- 0
 				for(i in 1:n) {
+					coefficient.qji <- 0
 					for(k in 1:p) {
-						coefficient.qj <- coefficient.qj + theta[j,k]*x[k,i]
+						coefficient.qji <- coefficient.qj + theta[j,k]*x[k,i]
 					}
-					coefficient.qj <- coefficient.qj * dhdVq(x[,i], q, theta)
+					coefficient.qji <- coefficient.qj * dhdVq(x[,i], q, theta)
+					coefficient.qj <- coefficient.qj + coefficient.qji
 				}
 				if(q==j) {
 					coefficient.qj <- coefficient.qj + 2
@@ -225,10 +228,45 @@ v.min <- function(x, y, w, theta) {
 	v <- solve(coefficients, values)
 
 }
+v.gradient.descent <- function (x, y, w, theta, iters, restarts) {
+	n <- dim(x)[[2]]
+	p <- dim(x)[[1]]
+	h <- dim(theta)[[1]]
+	vmin <- c()
+	objmin <- 1000000
+	for(r in 1:restarts) {
+		v <- c(runif(h, 0, 1))
+		for(iter in 1:iters) {
+			v <- v - v.prime.numeric(x, y, w, v, theta, 0.000001)
+			#print(v.prime.numeric(x, y, w, v, theta, 0.000001))
+			#print(f.obj1(t(x), y, w, v, theta))
+		}
+		finalobj <- f.obj1(t(x), y, w, v, theta)
+		print(finalobj)
+		if(finalobj < objmin) {
+			vmin <- v
+			objmin <- finalobj
+		}
+	}
+	vmin
+}
+v.prime.numeric <- function(x, y, w, v, theta, step) {
+	source("ando.R")
+	h <- dim(theta)[[1]]
+	vprime <- c(rep(0, h))
+	for(j in 1:h) {
+		vstep <- v
+		vstep[j] <- vstep[j] + step
+		vstepobj <- f.obj1(t(x), y, w, vstep, theta)
+		vobj <- f.obj1(t(x), y, w, v, theta)
+		vprime[j] <- (vstepobj - vobj)/h
+	}
+	return(vprime)
+}
+
 v.prime <- function(x, y, w, v, theta) {
 	vprime <- c(length = length(v))
 	n <- dim(x)[[2]]
-	cat(length(v))
 	for(q in 1:length(v)) {
 		vprime.q <- 0
 		for(i in 1:n) {
