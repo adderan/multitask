@@ -281,6 +281,7 @@ optimize.labeled <- function(x, y, theta, iters) {
 	f <- dim(x)[[1]]
 	n <- dim(x)[[2]]
 	h <- dim(theta)[[1]]
+	print(h)
 	v <- c(runif(h, -1, 1))
 	w <- c(runif(f, -1, 1))
 	cat("Dimension of theta: ", dim(theta), "\n")
@@ -290,7 +291,7 @@ optimize.labeled <- function(x, y, theta, iters) {
 		w <- w.min(x, y, v, theta)
 		v <- v.gradient.descent(x, y, w, theta, 100, 10)
 	}
-	list(W.hat = w, v.hat = v)
+	list(W.hat = w, V.hat = v)
 }
 
 

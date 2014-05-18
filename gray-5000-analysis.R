@@ -84,9 +84,10 @@ run.ando <- function(X.all, y.egfr, y.sens) {
 
 
 gray.analysis <- function(filename) {
+	source("multitask.R")
 	load(filename)
 
-	max.features <- 200
+	max.features <- 500
 	max.problems <- 3   #limit number of prediction problems
 	
 	y.sens <- Y[,"Erlotinib"]
@@ -111,16 +112,21 @@ gray.analysis <- function(filename) {
 	X.all <- cbind(X.train, X.unlabeled)
 	y.egfr <- X.all["EGFR",]
 	X.all <- X.all[-195,]
-	X.train.ando <- X.train[-195,]  #remove erlotinib from training data for Ando, but not ridge regression. 
+	X.train <- X.train[-195,]  #remove erlotinib from training data for Ando, but not ridge regression. 
+	X.test <- X.test[-195,]
 		
    
-  	Theta.hat <- run.ando(X.all, y.egfr, y.train) #ando joint predictor
+  	#Theta.hat <- run.ando(X.all, y.egfr, y.train) #ando joint predictor
 	#cat("Dimension of Theta.hat: ", dim(Theta.hat), "\n")
 	#cat("Dimension of X: ", dim(X.train.ando), "\n")
 
+	cat("dimension of X.all: ", dim(X.all), "\n")
+	cat("length of y.egfr", length(y.egfr), "\n")
+	joint.min.out <- joint.min(list(X.all), list(y.egfr), 5, 2)
+	Theta.hat <- joint.min.out[["Theta.hat"]]
 	#W.hat <- ando.out$W.hat
 	#V.hat <- ando.out$V.hat
-	labeled.predictor <- optimize.labeled(X.train.ando, y.train, Theta.hat, 1)
+	labeled.predictor <- optimize.labeled(X.train, y.train, Theta.hat, 1)
 	W.hat <- labeled.predictor[["W.hat"]]
 	V.hat <- labeled.predictor[["V.hat"]]
 	
