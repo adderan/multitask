@@ -39,18 +39,18 @@ remove.missing.data <- function(x, y) {
 	list(X = x, y = y)
 }
 run.ando <- function(X.all, y.egfr, y.sens) {
-	m <- length(y.egfr)
-  nproblems <- 2  #number of prediction problems to use. The i-th prediction problem is the i-th sample in X.all
-  nfeatures <- 100 #in case I don't want to use all of the features due to computation time. 
+  m <- length(y.egfr)
+  nproblems <- dim(X.all)[[2]]  #number of prediction problems to use. The i-th prediction problem is the i-th sample in X.all
+  p <- dim(X.all)[[1]]
   print(m)
   X.list <- list()
   y.list <- list()
   #build list of X.all repeated m times
   for(i in 1:nproblems) {
   	x.all.i <- matrix(unlist(X.all[,i]))
-    x.all.i.manual <- matrix(0, nfeatures, 1)
-    for(p in 1:nfeatures) {
-    	x.all.i.manual[p,1] <- X.all[p,i]
+    x.all.i.manual <- matrix(0, p, 1)
+    for(k in 1:p) {
+    	x.all.i.manual[k,1] <- X.all[k,i]
     }
     X.list[[i]] <- x.all.i.manual
     y.list[[i]] <- y.egfr[[i]]
@@ -75,18 +75,19 @@ run.ando <- function(X.all, y.egfr, y.sens) {
   #t.y.list <- lapply(y.list, t)
   cat("Dimension of t.X.list[[1]]: ", dim(t.X.list[[1]]), "\n")
   mydata <- list(X.list = t.X.list, y.list = y.list) #ando test code uses NxF data matrices
-	ando.test(mydata, W.hat, V.hat, Theta.hat)
-        
-	#make new weight vector for labeled data
-	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
-
+  ando.test(mydata, W.hat, V.hat, Theta.hat)
+  
+  #make new weight vector for labeled data
+  #list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
+  Theta.hat
 }
 
 
 gray.analysis <- function(filename) {
 	load(filename)
 
-	max.features <- 1000
+	max.features <- 200
+	max.problems <- 3   #limit number of prediction problems
 	
 	y.sens <- Y[,"Erlotinib"]
 	na.removed <- remove.missing.data(X, y.sens)  #remove data that is missing from y list
@@ -106,24 +107,30 @@ gray.analysis <- function(filename) {
   
 
 	#data for ando algorithm
+	X.unlabeled <- X.unlabeled[, 1:3]
 	X.all <- cbind(X.train, X.unlabeled)
 	y.egfr <- X.all["EGFR",]
 	X.all <- X.all[-195,]
+	X.train.ando <- X.train[-195,]  #remove erlotinib from training data for Ando, but not ridge regression. 
 		
    
-  ando.out <- run.ando(X.all, y.egfr, y.train) #ando joint predictor
-	Theta.hat <- ando.out$Theta.hat
-	W.hat <- ando.out$W.hat
-	V.hat <- ando.out$V.hat
-	labeled.predictor <- optimize.labeled(X.test, y.test, Theta.hat, 1)
-	
-	cat("Ando objective: ", f.obj1(X.test, y.test, w.labeled, V.hat, Theta.hat), "\n")
+  	Theta.hat <- run.ando(X.all, y.egfr, y.train) #ando joint predictor
+	#cat("Dimension of Theta.hat: ", dim(Theta.hat), "\n")
+	#cat("Dimension of X: ", dim(X.train.ando), "\n")
 
-  #beta <- ridge.regression(X.train, y.train, 1)
-	#cat("Ridge objective: ", ridge.objective(X.test, y.test, beta, 1), "\n")
+	#W.hat <- ando.out$W.hat
+	#V.hat <- ando.out$V.hat
+	labeled.predictor <- optimize.labeled(X.train.ando, y.train, Theta.hat, 1)
+	W.hat <- labeled.predictor[["W.hat"]]
+	V.hat <- labeled.predictor[["V.hat"]]
+	
+	cat("Ando objective: ", f.obj1(t(X.test), y.test, W.hat, V.hat, Theta.hat), "\n")
+
+  	beta <- ridge.regression(X.train, y.train, 1)
+	cat("Ridge objective: ", ridge.objective(X.test, y.test, beta, 1), "\n")
 
         
-  #print(dim(ando_predictions))
+  	#print(dim(ando_predictions))
               
 	
 }

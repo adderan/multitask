@@ -52,9 +52,9 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 		W.hat <- w.min.matrix(X, y, u, Theta.hat)
 		u <- W.hat + t(Theta.hat) %*% V.hat
 		Theta.hat <- theta.min(u, f, m, h, lambda)
-  } 
+  	} 
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
-
+	#Theta.hat
 }
 
 
@@ -235,11 +235,11 @@ v.gradient.descent <- function (x, y, w, theta, iters, restarts) {
 	vmin <- c()
 	objmin <- 1000000
 	for(r in 1:restarts) {
-		v <- c(runif(h, 0, 1))
+		v <- c(runif(h, -1, 1))
 		for(iter in 1:iters) {
 			v <- v - v.prime.numeric(x, y, w, v, theta, 0.000001)
 			#print(v.prime.numeric(x, y, w, v, theta, 0.000001))
-			#print(f.obj1(t(x), y, w, v, theta))
+			print(f.obj1(t(x), y, w, v, theta))
 		}
 		finalobj <- f.obj1(t(x), y, w, v, theta)
 		print(finalobj)
@@ -281,11 +281,14 @@ optimize.labeled <- function(x, y, theta, iters) {
 	f <- dim(x)[[1]]
 	n <- dim(x)[[2]]
 	h <- dim(theta)[[1]]
-	v <- c(runif(h), -1, 1)
-	w <- c(runif(f), -1, 1)
+	v <- c(runif(h, -1, 1))
+	w <- c(runif(f, -1, 1))
+	cat("Dimension of theta: ", dim(theta), "\n")
+	cat("Dimension of x: ", dim(x), "\n")
+	cat("Length of v:", h, "\n")
 	for(i in 1:iters) {
 		w <- w.min(x, y, v, theta)
-		v <- v.min(x, y, w, theta)
+		v <- v.gradient.descent(x, y, w, theta, 100, 10)
 	}
 	list(W.hat = w, v.hat = v)
 }
