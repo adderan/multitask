@@ -39,7 +39,7 @@ norm <- function(x) {
 joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
 	m <- length(y)
 	f <- dim(X[[1]])[[1]]
-	print(f)
+	#print(f)
 
 
 	lambda <- c(rep(1, times=m)) #this is the factor multiplying the regularizer in the regularized loss function. 
@@ -90,13 +90,62 @@ w.min.matrix <- function(X, y, u, theta) {
 		y_l <- y[[l]]
 		u_l <- u[, l]
 		v_l <- theta %*% u_l
-		print(l)
+		#print(l)
 		w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
-		print(dim(W.hat))
+		#w.min.out <- w.gradient.descent(X_l, y_l, v_l, theta, 1, 1, 10); 
+		#print(dim(W.hat))
 		W.hat[ , l] <- w.min.out
 	}
 	return(W.hat)
 }
+w.gradient.descent <- function(x, y, v, theta, restarts, step, iters) {
+	f <- dim(x)[[1]]
+	w.hat <- c(rep(0, f))
+	minobj <- 10000000
+	for(r in 1:restarts) {
+		new.w <- w.find.local.min.numeric(x, y, v, theta, step, iters)
+		new.w.obj <- f.obj1(t(x), y, new.w, v, theta)
+		if(new.w.obj < minobj) {
+			w.hat <- new.w
+			minobj <- new.w.obj
+		}
+	}
+	return(w.hat)
+}
+		
+w.find.local.min.numeric <- function(x, y, v, theta, step, iters) {
+	f <- dim(x)[[1]]
+	w <- c(runif(f, -1, 1))
+	gmin <- f.obj1(t(x), y, w, v, theta)
+	iter <- 0
+	while(iter < iters) {
+		wstep <- w - dgdw.numeric(x, y, w, v, theta, step)
+		gnew <- f.obj1(t(x), y, wstep, v, theta)
+		if(gnew > gmin) {
+			step <- step /2;
+		}
+		else {
+			w <- wstep;
+			gmin <- gnew;
+			iter <- iter + 1;
+		}
+	}
+	return(w)
+	
+}
+dgdw.numeric <- function(x, y, w, v, theta, step) {
+	f <- dim(x)[[1]]
+	dg <- c(rep(0, f))
+	for(k in 1:f) {
+		wstep <- w
+		wstep[k] <- wstep[k] + step
+		g0 <- f.obj1(t(x), y, w, v, theta)
+		g1 <- f.obj1(t(x), y, wstep, v, theta)
+		dg[k] <- (g1 - g0)/step
+	}
+	return(dg)
+}
+	
 ando.test.output <- function(data, h) {
 	#X <- data$X.list
 	#y <- data$y.list
@@ -236,10 +285,20 @@ v.gradient.descent <- function (x, y, w, theta, iters, restarts) {
 	objmin <- 1000000
 	for(r in 1:restarts) {
 		v <- c(runif(h, -1, 1))
-		for(iter in 1:iters) {
-			v <- v - v.prime.numeric(x, y, w, v, theta, 0.000001)
+		vobj <- f.obj1(t(x), y, w, v, theta)
+		stepsize <- 0.1
+		iter <- 0
+		while(iter < iters) {
+			vtest <- v - v.prime.numeric(x, y, w, v, theta, stepsize)
+			vtestobj <- f.obj1(t(x), y, w, vtest, theta)
+			if(vtestobj > vobj) stepsize <- stepsize/2
+			else {
+				v <- vtest
+				vobj <- f.obj1(t(x), y, w, v, theta)
+				iter <- iter + 1
+			}
 			#print(v.prime.numeric(x, y, w, v, theta, 0.000001))
-			print(f.obj1(t(x), y, w, v, theta))
+			print(vtestobj)
 		}
 		finalobj <- f.obj1(t(x), y, w, v, theta)
 		print(finalobj)
@@ -248,6 +307,7 @@ v.gradient.descent <- function (x, y, w, theta, iters, restarts) {
 			objmin <- finalobj
 		}
 	}
+	cat("Final ando training objective: ", objmin, "\n")
 	vmin
 }
 v.prime.numeric <- function(x, y, w, v, theta, step) {
@@ -289,7 +349,7 @@ optimize.labeled <- function(x, y, theta, iters) {
 	cat("Length of v:", h, "\n")
 	for(i in 1:iters) {
 		w <- w.min(x, y, v, theta)
-		v <- v.gradient.descent(x, y, w, theta, 100, 10)
+		v <- v.gradient.descent(x, y, w, theta, 100, 20)
 	}
 	list(W.hat = w, V.hat = v)
 }
