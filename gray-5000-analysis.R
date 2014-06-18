@@ -95,17 +95,22 @@ ando.run <- function(X.lab, y, X.unlab, feature.min, feature.max, n.unlabeled, u
 	W.hat <- joint.min.out$W.hat
 	V.hat <- joint.min.out$V.hat
 	Theta.hat <- joint.min.out$Theta.hat
-	cat("Ando objective for ", inhibitor, " with ", n.unlabeled, " samples for Auxiliary problem ", rownames(X.lab)[[gene]], ":", ando.objective(X.test, y.test, W.hat[,1], V.hat[,1], Theta.hat), "\n")
+	cat("Objective for ", inhibitor, " with ", n.unlabeled, " samples for Auxiliary problem ", rownames(X.lab)[[gene]], ":", ando.objective(X.test, y.test, W.hat[,1], V.hat[,1], Theta.hat), "\n")
 
 }
 gray.analyze <- function(filename) {
 	load(filename)
 	ando.run(X, Y, Xu, 0, 500, 0, 0, "Erlotinib", 195)
+	ando.run(X, Y, Xu, 0, 500, 100, 1, "Erlotinib", 195)
 	ando.run(X, Y, Xu, 0, 500, 200, 1, "Erlotinib", 195)
 	ando.run(X, Y, Xu, 0, 500, 200, 1, "Erlotinib", 100)
-	ando.run(X, Y, Xu, 2500, 3000, 10,  0, "Lapatinib", 2722)
+
+	ando.run(X, Y, Xu, 2500, 3000, 0,  0, "Lapatinib", 2722)
+	ando.run(X, Y, Xu, 2500, 3000, 100, 1, "Lapatinib", 2722)
+	ando.run(X, Y, Xu, 2500, 3000, 200, 1, "Lapatinib", 2722)
+	ando.run(X, Y, Xu, 2500, 3000, 100, 1, "Lapatinib", 2600)
 	ando.run(X, Y, Xu, 2500, 3000, 200, 1, "Lapatinib", 2600)
+
 	ando.run(X, Y, Xu, 0, 500, 200, 1, "Lapatinib", 195)
-
+	ando.run(X, Y, Xu, 0, 500, 100, 1, "Lapatinib", 195)
 }
-
