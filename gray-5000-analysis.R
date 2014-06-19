@@ -100,6 +100,7 @@ ando.run <- function(X.lab, y, X.unlab, feature.min, feature.max, n.unlabeled, u
 }
 gray.analyze <- function(filename) {
 	load(filename)
+	sink("gray-5000.out")
 	ando.run(X, Y, Xu, 0, 500, 0, 0, "Erlotinib", 195)
 	ando.run(X, Y, Xu, 0, 500, 100, 1, "Erlotinib", 195)
 	ando.run(X, Y, Xu, 0, 500, 200, 1, "Erlotinib", 195)
