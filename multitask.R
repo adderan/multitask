@@ -1,3 +1,5 @@
+source("../multitask/ando.R")
+source("../multitask/gd.R")
 
 joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
 	m <- length(y)
@@ -9,7 +11,7 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 	Theta.hat <- matrix(runif(h*f), nrow=h, ncol=f); #start with arbitrary theta
 	u <- matrix(rep(0, times=f*m), f, m) #start with zero u. 
 	V.hat <- Theta.hat %*% u #initialize v = theta * u
-        #alternately minimize the w-vector and theta.
+    #alternately minimize the w-vector and theta.
 	for(i in 1:iters) {
 		V.hat <- Theta.hat %*% u
 		W.hat <- w.min.matrix(X, y, u, Theta.hat)
@@ -54,7 +56,13 @@ w.min.matrix <- function(X, y, u, theta) {
 		u_l <- u[, l]
 		v_l <- theta %*% u_l
 		#print(l)
+
+
 		w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
+		w.min.out.gd <- w.min.analytic.gd(X_l, y_l, v_l, theta, w.prime, f.obj1, 2)
+		cat("exact solution objective: ", f.obj1(t(X_l), y_l, w.min.out, v_l, theta), "\n")
+		cat("gd objective: ", f.obj1(t(X_l), y_l, w.min.out.gd, v_l, theta), "\n")
+
 		#w.min.out <- w.gradient.descent(X_l, y_l, v_l, theta, 1, 1, 10); 
 		#print(dim(W.hat))
 		W.hat[ , l] <- w.min.out
@@ -63,12 +71,14 @@ w.min.matrix <- function(X, y, u, theta) {
 }
 #compute the singular value decomposition of a matrix containing the minimum u vectors for each prediction problem, as calculated by w_min. Return a new theta from the first h rows of the SVD. 
 theta.min <- function(u, f, m, h, lambda) {
+	print("theta.min")
 	U <- matrix(1, f, m)
 	for(l in 1:m) {
 		U[ , l] <- sqrt(lambda[[l]])*u[ , l]
 	}
-	svd_of_U <- svd(U, nu = h)
+	svd_of_U <- svd(U, nu = h, nv = 0)
  	v1 <- svd_of_U$u
+	#save(U, file="testmatrix.RData")
 	new.theta <- matrix(0, nrow=h, ncol=f)
 
 	for(k in 1:h) {
@@ -79,6 +89,7 @@ theta.min <- function(u, f, m, h, lambda) {
 
 #finds minimum w-vector for one prediction problem. x and y should be the l-th data matrix and the lth output
 w.min <- function(x, y, v, theta) {
+	print("w-min")
 	n <- dim(x)[[2]]  #the number of samples for this prediction problem
 	f <- dim(x)[[1]]  #the number of features. Features are the rows of the data matrix. 
 	#v <- theta %*% u    #this is v subscript l
