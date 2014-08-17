@@ -59,9 +59,9 @@ w.min.matrix <- function(X, y, u, theta) {
 
 
 		w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
-		w.min.out.gd <- w.min.analytic.gd(X_l, y_l, v_l, theta, w.prime, f.obj1, 2)
+		w.min.out.sgd <- w.min.sgd(X_l, y_l, v_l, theta, 20)
 		cat("exact solution objective: ", f.obj1(t(X_l), y_l, w.min.out, v_l, theta), "\n")
-		cat("gd objective: ", f.obj1(t(X_l), y_l, w.min.out.gd, v_l, theta), "\n")
+		cat("sgd objective: ", f.obj1(t(X_l), y_l, w.min.out.sgd, v_l, theta), "\n")
 
 		#w.min.out <- w.gradient.descent(X_l, y_l, v_l, theta, 1, 1, 10); 
 		#print(dim(W.hat))
