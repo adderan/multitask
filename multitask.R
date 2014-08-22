@@ -1,11 +1,11 @@
 source("../multitask/ando.R")
-source("../multitask/gd.R")
+source("../multitask/w-min-glm.R")
 
 joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
 	m <- length(y)
 	f <- dim(X[[1]])[[1]]
 	#print(f)
-
+	X.t <- lapply(X, t)
 
 	lambda <- c(rep(1, times=m)) #this is the factor multiplying the regularizer in the regularized loss function. 
 	Theta.hat <- matrix(runif(h*f), nrow=h, ncol=f); #start with arbitrary theta
@@ -17,6 +17,7 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 		W.hat <- w.min.matrix(X, y, u, Theta.hat)
 		u <- W.hat + t(Theta.hat) %*% V.hat
 		Theta.hat <- theta.min(u, f, m, h, lambda)
+		cat("total objective: ", f.obj(X.t, y, W.hat, V.hat, Theta.hat), "\n")
   	} 
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 	#Theta.hat
@@ -57,15 +58,16 @@ w.min.matrix <- function(X, y, u, theta) {
 		v_l <- theta %*% u_l
 		#print(l)
 
-
-		w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
-		w.min.out.sgd <- w.min.sgd(X_l, y_l, v_l, theta, 20)
-		cat("exact solution objective: ", f.obj1(t(X_l), y_l, w.min.out, v_l, theta), "\n")
-		cat("sgd objective: ", f.obj1(t(X_l), y_l, w.min.out.sgd, v_l, theta), "\n")
+		#w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
+		#w.min.out.sgd <- w.min.sgd(X_l, y_l, v_l, theta, 2)
+		print("w-min")
+		w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta)
+		#cat("exact solution objective: ", f.obj1(t(X_l), y_l, w.min.out, v_l, theta), "\n")
+		#cat("sgd objective: ", f.obj1(t(X_l), y_l, w.min.out.sgd, v_l, theta), "\n")
 
 		#w.min.out <- w.gradient.descent(X_l, y_l, v_l, theta, 1, 1, 10); 
 		#print(dim(W.hat))
-		W.hat[ , l] <- w.min.out
+		W.hat[ , l] <- w.min.out.glm
 	}
 	return(W.hat)
 }
