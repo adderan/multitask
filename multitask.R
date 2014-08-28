@@ -1,7 +1,17 @@
 source("../multitask/ando.R")
 source("../multitask/w-min-glm.R")
+source("../multitask/make-w-vector-cache.R")
+source("../multitask/w-min-cache.R")
 
-joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
+mode <- "uncached"
+
+joint.min <- function(X, y, h, iters, lambda, batch.name, recache = FALSE) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
+	cachefile <- cache.filename(batch.name, lambda)
+	if(file.exists(cachefile)) {
+		load(cachefile)
+		mode <- "cached"
+		print("Using pre-computed w-vectors.")
+	}
 	m <- length(y)
 	f <- dim(X[[1]])[[1]]
 	#print(f)
@@ -14,7 +24,7 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
     #alternately minimize the w-vector and theta.
 	for(i in 1:iters) {
 		V.hat <- Theta.hat %*% u
-		W.hat <- w.min.matrix(X, y, u, Theta.hat)
+		W.hat <- w.min.matrix(X, y, u, Theta.hat, w.vector.cache)
 		u <- W.hat + t(Theta.hat) %*% V.hat
 		Theta.hat <- theta.min(u, f, m, h, lambda)
 		cat("total objective: ", f.obj(X.t, y, W.hat, V.hat, Theta.hat), "\n")
@@ -23,8 +33,10 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 	#Theta.hat
 }
 
+aso.train <- function(
 
-w.prime <- function(x, y, w, v, theta) {
+#compute derivative of loss function at a point
+g.prime <- function(x, y, w, v, theta) {
 	n <- dim(x)[[2]]
 	f <- dim(x)[[1]]
 	gprime <- c()
@@ -45,7 +57,7 @@ w.prime <- function(x, y, w, v, theta) {
 }
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
-w.min.matrix <- function(X, y, u, theta) {
+w.min.matrix <- function(X, y, u, theta, w.vector.cache) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
  	f <- dim(X[[1]])[[1]] #number of features
@@ -54,20 +66,22 @@ w.min.matrix <- function(X, y, u, theta) {
                 #select the data for the l-th prediction problem
 		X_l <- X[[l]]
 		y_l <- y[[l]]
+		y_l_description <- names(y)[[l]]
 		u_l <- u[, l]
 		v_l <- theta %*% u_l
 		#print(l)
 
 		#w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
-		#w.min.out.sgd <- w.min.sgd(X_l, y_l, v_l, theta, 2)
-		print("w-min")
-		w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta)
-		#cat("exact solution objective: ", f.obj1(t(X_l), y_l, w.min.out, v_l, theta), "\n")
-		#cat("sgd objective: ", f.obj1(t(X_l), y_l, w.min.out.sgd, v_l, theta), "\n")
 
-		#w.min.out <- w.gradient.descent(X_l, y_l, v_l, theta, 1, 1, 10); 
-		#print(dim(W.hat))
-		W.hat[ , l] <- w.min.out.glm
+		if(mode == "uncached") {
+			w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta)
+			W.hat[, l] <- w.min.out.glm
+		}
+		if(mode == "cached") {
+			w.min.out.cache <- w.min.cache(X_l, y_l, y_l_description, v_l, theta)
+			W.hat[, l] <- w.min.out.cache
+		}
+
 	}
 	return(W.hat)
 }
