@@ -1,63 +1,93 @@
 source("../multitask/ando.R")
 source("../multitask/w-min-glm.R")
-source("../multitask/make-w-vector-cache.R")
-source("../multitask/w-min-cache.R")
+library(glmnet)
 
-mode <- "uncached"
+cache <- NULL
 
-joint.min <- function(X, y, h, iters, lambda, batch.name, recache = FALSE) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
-	cachefile <- cache.filename(batch.name, lambda)
-	if(file.exists(cachefile)) {
-		load(cachefile)
-		mode <- "cached"
-		print("Using pre-computed w-vectors.")
-	}
+joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
 	m <- length(y)
 	f <- dim(X[[1]])[[1]]
 	#print(f)
 	X.t <- lapply(X, t)
 
-	lambda <- c(rep(1, times=m)) #this is the factor multiplying the regularizer in the regularized loss function. 
+	#lambda <- c(rep(1, times=m)) #this is the factor multiplying the regularizer in the regularized loss function. 
 	Theta.hat <- matrix(runif(h*f), nrow=h, ncol=f); #start with arbitrary theta
 	u <- matrix(rep(0, times=f*m), f, m) #start with zero u. 
 	V.hat <- Theta.hat %*% u #initialize v = theta * u
     #alternately minimize the w-vector and theta.
 	for(i in 1:iters) {
 		V.hat <- Theta.hat %*% u
-		W.hat <- w.min.matrix(X, y, u, Theta.hat, w.vector.cache)
+		W.hat <- w.min.matrix(X, y, u, Theta.hat, use.cache = FALSE)
 		u <- W.hat + t(Theta.hat) %*% V.hat
-		Theta.hat <- theta.min(u, f, m, h, lambda)
+		Theta.hat <- theta.min(u, f, m, h)
 		cat("total objective: ", f.obj(X.t, y, W.hat, V.hat, Theta.hat), "\n")
   	} 
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 	#Theta.hat
 }
 
-aso.train <- function(
-
-#compute derivative of loss function at a point
-g.prime <- function(x, y, w, v, theta) {
-	n <- dim(x)[[2]]
-	f <- dim(x)[[1]]
-	gprime <- c()
-	for(q in 1:f) {
-		gprimeq <- 0
-		for(i in 1:n) {
-			isum <- 0
-			isum <- isum + y[[i]]
-			isum <- isum - (t(w) %*% x[ , i])
-			isum <- isum - (t(v) %*% theta) %*% x[ , i]
-			isum <- isum * (-x[q, i])
-			gprimeq <- gprimeq + isum
-		}
-		gprimeq <- gprimeq + 2*w[[q]]
-		gprime[[q]] <- gprimeq
+aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.not.preloaded=TRUE) {
+	cachefile <- cache.filename(lambda)
+	if(file.exists(cachefile) && use.cache && cache.not.preloaded) {
+		load(cachefile)
+		cache <- loaded.cache
 	}
-	return(gprime)
+	n.problems <- length(x)
+	n.features <- dim(x[[1]])[[1]]
+	stopifnot(n.problems == length(y))
+
+	u <- matrix(rep(0, times = n.features*n.problems), n.features, n.problems)
+	Theta.hat <- matrix(runif(h*n.features), h, n.features)
+	W.hat <- c()
+	V.hat <- c()
+	for(iter in 1:iters) {
+		W.hat <- w.min.matrix(x, y, u, Theta.hat, use.cache=TRUE)
+		V.hat <- c()
+		for(l in 1:n.problems) {
+			V.hat[,l] <- theta * u[,l]
+		}
+		for(l in 1:n.problems) {
+			u[,l] <- W.hat[,l] + t(theta) %*% V.hat[,l]
+		}
+		Theta.hat <- theta.min(u, f, m, h)
+	}
+	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
+}
+aso.predict <- function(aso.trained.model, new.x) {
+	n.samples <- dim(new.x)[[2]]
+	n.features <- dim(new.x)[[1]]
+
+	w <- aso.trained.model$W.hat[,1]
+	v <- aso.trained.model$V.hat[,1]
+	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x
+	stopifnot(length(y.pred) == n.samples)
+	return(y.pred)
+}
+
+
+cache.filename <- function(lambda) {
+	filename <- "cache/"
+	filename <- paste(filename, "lambda", sep="")
+	filename <- paste(filename, lambda, sep="")
+	return(filename)
+}
+w.min.cache <- function(x, y, y_description, v, theta) {
+	if(!(y_description %in% names(cache))) {
+		add.to.cache(x, y, y_description)
+	}
+	w.precomputed <- cache[[y_description]]
+	w.new <- v %*% theta
+	w <- w.precomputed - w.new
+	return(w)
+}
+add.to.cache <- function(x, y, y_description, lambda) {
+	fit <- glmnet(t(x), y, alpha = 0)
+	w.precomputed <- predict(fit, type= "coef", s = lambda)
+	cache[[y_description]] <- w.precomputed
 }
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
-w.min.matrix <- function(X, y, u, theta, w.vector.cache) {
+w.min.all.problems <- function(X, y, u, theta, w.vector.cache = NULL, use.cache=FALSE) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
  	f <- dim(X[[1]])[[1]] #number of features
@@ -73,12 +103,12 @@ w.min.matrix <- function(X, y, u, theta, w.vector.cache) {
 
 		#w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
 
-		if(mode == "uncached") {
+		if(!use.cache) {
 			w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta)
 			W.hat[, l] <- w.min.out.glm
 		}
-		if(mode == "cached") {
-			w.min.out.cache <- w.min.cache(X_l, y_l, y_l_description, v_l, theta)
+		if(use.cache) {
+			w.min.out.cache <- w.min.cache(X_l, y_l, y_l_description, v_l, theta, w.vector.cache)
 			W.hat[, l] <- w.min.out.cache
 		}
 
@@ -86,11 +116,11 @@ w.min.matrix <- function(X, y, u, theta, w.vector.cache) {
 	return(W.hat)
 }
 #compute the singular value decomposition of a matrix containing the minimum u vectors for each prediction problem, as calculated by w_min. Return a new theta from the first h rows of the SVD. 
-theta.min <- function(u, f, m, h, lambda) {
+theta.min <- function(u, f, m, h) {
 	print("theta.min")
 	U <- matrix(1, f, m)
 	for(l in 1:m) {
-		U[ , l] <- sqrt(lambda[[l]])*u[ , l]
+		U[ , l] <- u[ , l]
 	}
 	svd_of_U <- svd(U, nu = h, nv = 0)
  	v1 <- svd_of_U$u
