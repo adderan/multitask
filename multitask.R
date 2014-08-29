@@ -27,38 +27,52 @@ joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is ma
 }
 
 aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.not.preloaded=TRUE) {
+
+	#if a cache exists for this value of lambda, load it
 	cachefile <- cache.filename(lambda)
 	if(file.exists(cachefile) && use.cache && cache.not.preloaded) {
 		load(cachefile)
 		cache <- loaded.cache
+	}
+	else if(!file.exists(cachefile) && use.cache) {
+		cache <- list()
 	}
 	n.problems <- length(x)
 	n.features <- dim(x[[1]])[[1]]
 	stopifnot(n.problems == length(y))
 
 	u <- matrix(rep(0, times = n.features*n.problems), n.features, n.problems)
+	colnames(u) <- names(x)
+	rownames(u) <- rownames(x[[1]])
+
 	Theta.hat <- matrix(runif(h*n.features), h, n.features)
 	W.hat <- c()
 	V.hat <- c()
 	for(iter in 1:iters) {
-		W.hat <- w.min.matrix(x, y, u, Theta.hat, use.cache=TRUE)
+		W.hat <- w.min.all.problems(x, y, u, Theta.hat, use.cache)
 		V.hat <- c()
 		for(l in 1:n.problems) {
-			V.hat[,l] <- theta * u[,l]
+			problem.name <- names(x)[[l]]
+			V.hat[,problem.name] <- theta * u[,problem.name]
 		}
 		for(l in 1:n.problems) {
-			u[,l] <- W.hat[,l] + t(theta) %*% V.hat[,l]
+			problem.name <- names(x)[[l]]
+			u[,problem.name] <- W.hat[,problem.name] + t(theta) %*% V.hat[,problem.name]
 		}
 		Theta.hat <- theta.min(u, f, m, h)
 	}
+
+	#write the updated cache
+	loaded.cache <- cache
+	save(loaded.cache, file=cachefile)
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 }
 aso.predict <- function(aso.trained.model, new.x) {
 	n.samples <- dim(new.x)[[2]]
 	n.features <- dim(new.x)[[1]]
 
-	w <- aso.trained.model$W.hat[,1]
-	v <- aso.trained.model$V.hat[,1]
+	w <- aso.trained.model$W.hat[,"primary"]
+	v <- aso.trained.model$V.hat[,"primary"]
 	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
@@ -75,29 +89,33 @@ w.min.cache <- function(x, y, y_description, v, theta) {
 	if(!(y_description %in% names(cache))) {
 		add.to.cache(x, y, y_description)
 	}
+	else {
+		cat("Retrieving ", y_description, " from the cache.\n")
+	}
 	w.precomputed <- cache[[y_description]]
 	w.new <- v %*% theta
 	w <- w.precomputed - w.new
 	return(w)
 }
 add.to.cache <- function(x, y, y_description, lambda) {
+	cat("Computing ", y_description, " from scratch and adding it to the cache.\n")
 	fit <- glmnet(t(x), y, alpha = 0)
 	w.precomputed <- predict(fit, type= "coef", s = lambda)
 	cache[[y_description]] <- w.precomputed
 }
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
-w.min.all.problems <- function(X, y, u, theta, w.vector.cache = NULL, use.cache=FALSE) {
+w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
  	f <- dim(X[[1]])[[1]] #number of features
 	W.hat <- matrix(0, f, m)  
 	for(l in 1:m) {
-                #select the data for the l-th prediction problem
-		X_l <- X[[l]]
-		y_l <- y[[l]]
-		y_l_description <- names(y)[[l]]
-		u_l <- u[, l]
+        #select the data for the l-th prediction problem
+		problem.name <- names(X)[[l]]
+		X_l <- X[[problem.name]]
+		y_l <- y[[problem.name]]
+		u_l <- u[, problem.name]
 		v_l <- theta %*% u_l
 		#print(l)
 
@@ -105,11 +123,11 @@ w.min.all.problems <- function(X, y, u, theta, w.vector.cache = NULL, use.cache=
 
 		if(!use.cache) {
 			w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta)
-			W.hat[, l] <- w.min.out.glm
+			W.hat[, problem.name] <- w.min.out.glm
 		}
 		if(use.cache) {
-			w.min.out.cache <- w.min.cache(X_l, y_l, y_l_description, v_l, theta, w.vector.cache)
-			W.hat[, l] <- w.min.out.cache
+			w.min.out.cache <- w.min.cache(X_l, y_l, problem.name, v_l, theta)
+			W.hat[, problem.name] <- w.min.out.cache
 		}
 
 	}
@@ -119,10 +137,10 @@ w.min.all.problems <- function(X, y, u, theta, w.vector.cache = NULL, use.cache=
 theta.min <- function(u, f, m, h) {
 	print("theta.min")
 	U <- matrix(1, f, m)
-	for(l in 1:m) {
-		U[ , l] <- u[ , l]
-	}
-	svd_of_U <- svd(U, nu = h, nv = 0)
+	#for(l in 1:m) {
+	#	U[ , l] <- u[ , l]
+	#}
+	svd_of_U <- svd(u, nu = h, nv = 0)
  	v1 <- svd_of_U$u
 	#save(U, file="testmatrix.RData")
 	new.theta <- matrix(0, nrow=h, ncol=f)
