@@ -4,29 +4,7 @@ library(glmnet)
 
 cache <- NULL
 
-joint.min <- function(X, y, h, iters) { #x is matrix of feature vectors, y is matrix of output vectors, f is number of features, m is number of learning problems. 
-	m <- length(y)
-	f <- dim(X[[1]])[[1]]
-	#print(f)
-	X.t <- lapply(X, t)
-
-	#lambda <- c(rep(1, times=m)) #this is the factor multiplying the regularizer in the regularized loss function. 
-	Theta.hat <- matrix(runif(h*f), nrow=h, ncol=f); #start with arbitrary theta
-	u <- matrix(rep(0, times=f*m), f, m) #start with zero u. 
-	V.hat <- Theta.hat %*% u #initialize v = theta * u
-    #alternately minimize the w-vector and theta.
-	for(i in 1:iters) {
-		V.hat <- Theta.hat %*% u
-		W.hat <- w.min.matrix(X, y, u, Theta.hat, use.cache = FALSE)
-		u <- W.hat + t(Theta.hat) %*% V.hat
-		Theta.hat <- theta.min(u, f, m, h)
-		cat("total objective: ", f.obj(X.t, y, W.hat, V.hat, Theta.hat), "\n")
-  	} 
-	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
-	#Theta.hat
-}
-
-aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.not.preloaded=TRUE) {
+aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.not.preloaded=TRUE, cache.name = "default") {
 
 	#if a cache exists for this value of lambda, load it
 	cachefile <- cache.filename(lambda)
@@ -46,25 +24,28 @@ aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.c
 	rownames(u) <- rownames(x[[1]])
 
 	Theta.hat <- matrix(runif(h*n.features), h, n.features)
-	W.hat <- c()
-	V.hat <- c()
+	W.hat <- matrix(0, n.features, n.problems)
+	V.hat <- matrix(0, h, n.problems)
+	
+	colnames(V.hat) <- names(x)
 	for(iter in 1:iters) {
 		W.hat <- w.min.all.problems(x, y, u, Theta.hat, use.cache)
-		V.hat <- c()
 		for(l in 1:n.problems) {
 			problem.name <- names(x)[[l]]
-			V.hat[,problem.name] <- theta * u[,problem.name]
+			V.hat[,problem.name] <- Theta.hat %*% u[,problem.name]
 		}
 		for(l in 1:n.problems) {
 			problem.name <- names(x)[[l]]
-			u[,problem.name] <- W.hat[,problem.name] + t(theta) %*% V.hat[,problem.name]
+			u[,problem.name] <- W.hat[,problem.name] + t(Theta.hat) %*% V.hat[,problem.name]
 		}
-		Theta.hat <- theta.min(u, f, m, h)
+		Theta.hat <- theta.min(u, n.features, n.problems, h)
 	}
 
 	#write the updated cache
-	loaded.cache <- cache
-	save(loaded.cache, file=cachefile)
+	if(use.cache) {
+		loaded.cache <- cache
+		save(loaded.cache, file=cachefile)
+	}
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 }
 aso.predict <- function(aso.trained.model, new.x, primary.problem) {
@@ -73,6 +54,7 @@ aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 
 	w <- aso.trained.model$W.hat[,primary.problem]
 	v <- aso.trained.model$V.hat[,primary.problem]
+	theta <- aso.trained.model$Theta.hat
 	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
@@ -85,6 +67,8 @@ cache.filename <- function(lambda) {
 	filename <- paste(filename, lambda, sep="")
 	return(filename)
 }
+
+#add v * theta to the precomputed weight vector to use as minimum w-vector for this value of theta
 w.min.cache <- function(x, y, y_description, v, theta) {
 	if(!(y_description %in% names(cache))) {
 		add.to.cache(x, y, y_description)
@@ -97,11 +81,11 @@ w.min.cache <- function(x, y, y_description, v, theta) {
 	w <- w.precomputed - w.new
 	return(w)
 }
-add.to.cache <- function(x, y, y_description, lambda) {
-	cat("Computing ", y_description, " from scratch and adding it to the cache.\n")
+add.to.cache <- function(x, y, problem.name, lambda) {
+	cat("Computing ", problem.name, " from scratch and adding it to the cache.\n")
 	fit <- glmnet(t(x), y, alpha = 0)
 	w.precomputed <- predict(fit, type= "coef", s = lambda)
-	cache[[y_description]] <- w.precomputed
+	cache[[problem.name]] <- w.precomputed
 }
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
@@ -109,7 +93,11 @@ w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
  	f <- dim(X[[1]])[[1]] #number of features
-	W.hat <- matrix(0, f, m)  
+
+	W.hat <- matrix(0, f, m)
+	colnames(W.hat) <- names(X)
+	rownames(W.hat) <- rownames(X[[1]])
+
 	for(l in 1:m) {
         #select the data for the l-th prediction problem
 		problem.name <- names(X)[[l]]
