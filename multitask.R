@@ -4,32 +4,40 @@ library(glmnet)
 
 cache <- NULL
 
-aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.not.preloaded=TRUE, cache.name = "default") {
+aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.name = "default", preloaded.cache = NULL) {
 
-	#if a cache exists for this value of lambda, load it
-	cachefile <- cache.filename(lambda)
-	if(file.exists(cachefile) && use.cache && cache.not.preloaded) {
+	#if a cache exists for this value of lambda and with the provided name, load it
+	cachefile <- cache.filename(lambda, cache.name)
+	if(file.exists(cachefile) && use.cache && !recompute.cache && is.null(preloaded.cache)) {
 		load(cachefile)
 		cache <- loaded.cache
 	}
-	else if(!file.exists(cachefile) && use.cache) {
+
+	#if a cache has been preloaded, use that
+	else if(use.cache && !is.null(preloaded.cache)) {
+		cache <- preloaded.cache
+	}
+
+	#if a cache doesn't exist, create it
+	else if(use.cache) {
 		cache <- list()
 	}
-	n.problems <- length(x)
-	n.features <- dim(x[[1]])[[1]]
-	stopifnot(n.problems == length(y))
 
-	u <- matrix(rep(0, times = n.features*n.problems), n.features, n.problems)
+	n.problems <- length(x)  #number of total problems to minimize over, including the primary problem and all auxiliary problems
+	n.features <- dim(x[[1]])[[1]] #must use same set of features for all problems
+	stopifnot(n.problems == length(y))
+	
+	u <- matrix(rep(0, times = n.features*n.problems), n.features, n.problems) #each column will contain the sum w + v*theta
 	colnames(u) <- names(x)
 	rownames(u) <- rownames(x[[1]])
 
-	Theta.hat <- matrix(runif(h*n.features), h, n.features)
-	W.hat <- matrix(0, n.features, n.problems)
-	V.hat <- matrix(0, h, n.problems)
+	Theta.hat <- matrix(runif(h*n.features), h, n.features)  #the structural matrix, shared between all problems, that will be minimized.
+	W.hat <- matrix(0, n.features, n.problems)  #the high-dimensional weight vector
+	V.hat <- matrix(0, h, n.problems)  #the low-dimensional weight vector
 	
 	colnames(V.hat) <- names(x)
 	for(iter in 1:iters) {
-		W.hat <- w.min.all.problems(x, y, u, Theta.hat, use.cache)
+		W.hat <- w.min.all.problems(x, y, u, Theta.hat, use.cache, lambda)
 		for(l in 1:n.problems) {
 			problem.name <- names(x)[[l]]
 			V.hat[,problem.name] <- Theta.hat %*% u[,problem.name]
@@ -41,7 +49,7 @@ aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.c
 		Theta.hat <- theta.min(u, n.features, n.problems, h)
 	}
 
-	#write the updated cache
+	#write the updated (or created) cache
 	if(use.cache) {
 		loaded.cache <- cache
 		save(loaded.cache, file=cachefile)
@@ -61,23 +69,24 @@ aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 }
 
 
-cache.filename <- function(lambda) {
+cache.filename <- function(lambda, cache.name) {
 	filename <- "cache/"
-	filename <- paste(filename, "lambda", sep="")
+	filename <- paste(filename, cache.name, sep="")
+	filename <- paste(filename, "-lambda", sep="")
 	filename <- paste(filename, lambda, sep="")
 	return(filename)
 }
 
 #add v * theta to the precomputed weight vector to use as minimum w-vector for this value of theta
-w.min.cache <- function(x, y, y_description, v, theta) {
-	if(!(y_description %in% names(cache))) {
-		add.to.cache(x, y, y_description)
+w.min.cache <- function(x, y, problem.name, v, theta, lambda) {
+	if(!(problem.name %in% names(cache))) {
+		add.to.cache(x, y, problem.name, lambda)
 	}
 	else {
-		cat("Retrieving ", y_description, " from the cache.\n")
+		cat("Retrieving ", problem.name, " from the cache.\n")
 	}
-	w.precomputed <- cache[[y_description]]
-	w.new <- v %*% theta
+	w.precomputed <- cache[[problem.name]]
+	w.new <- t(v) %*% theta
 	w <- w.precomputed - w.new
 	return(w)
 }
@@ -85,11 +94,13 @@ add.to.cache <- function(x, y, problem.name, lambda) {
 	cat("Computing ", problem.name, " from scratch and adding it to the cache.\n")
 	fit <- glmnet(t(x), y, alpha = 0)
 	w.precomputed <- predict(fit, type= "coef", s = lambda)
+	w.precomputed <- w.precomputed[-1]
+	w.precomputed <- as.vector(w.precomputed)
 	cache[[problem.name]] <- w.precomputed
 }
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
-w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE) {
+w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE, lambda) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
  	f <- dim(X[[1]])[[1]] #number of features
@@ -105,7 +116,6 @@ w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE) {
 		y_l <- y[[problem.name]]
 		u_l <- u[, problem.name]
 		v_l <- theta %*% u_l
-		#print(l)
 
 		#w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
 
@@ -114,7 +124,7 @@ w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE) {
 			W.hat[, problem.name] <- w.min.out.glm
 		}
 		if(use.cache) {
-			w.min.out.cache <- w.min.cache(X_l, y_l, problem.name, v_l, theta)
+			w.min.out.cache <- w.min.cache(X_l, y_l, problem.name, v_l, theta, lambda)
 			W.hat[, problem.name] <- w.min.out.cache
 		}
 
@@ -123,14 +133,9 @@ w.min.all.problems <- function(X, y, u, theta, use.cache=FALSE) {
 }
 #compute the singular value decomposition of a matrix containing the minimum u vectors for each prediction problem, as calculated by w_min. Return a new theta from the first h rows of the SVD. 
 theta.min <- function(u, f, m, h) {
-	print("theta.min")
 	U <- matrix(1, f, m)
-	#for(l in 1:m) {
-	#	U[ , l] <- u[ , l]
-	#}
 	svd_of_U <- svd(u, nu = h, nv = 0)
  	v1 <- svd_of_U$u
-	#save(U, file="testmatrix.RData")
 	new.theta <- matrix(0, nrow=h, ncol=f)
 
 	for(k in 1:h) {
@@ -139,7 +144,7 @@ theta.min <- function(u, f, m, h) {
 	return(new.theta)
 }
 
-#finds minimum w-vector for one prediction problem. x and y should be the l-th data matrix and the lth output
+#finds minimum w-vector analytically for one prediction problem. x and y should be the l-th data matrix and the lth output. This is slow and should only be used for testing. 
 w.min <- function(x, y, v, theta) {
 	print("w-min")
 	n <- dim(x)[[2]]  #the number of samples for this prediction problem
@@ -163,8 +168,6 @@ w.min <- function(x, y, v, theta) {
 		val <- 0
 		for(i in 1:n) {
 			val = val + y[[i]]*x[q, i]
-                        #cat("Length of x[,i]: ", length(x[,i]), "\n")
-                        #cat("Dimension of theta: ", dim(theta), "\n")
 			thetatimesxi <- theta %*% x[ , i]
 			vtimesthetatimesxi <- t(v) %*% thetatimesxi
 
