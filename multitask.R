@@ -67,12 +67,12 @@ aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.c
 	save(loaded.cache, file=cachefile)
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 }
-aso.predict <- function(aso.trained.model, new.x) {
+aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 	n.samples <- dim(new.x)[[2]]
 	n.features <- dim(new.x)[[1]]
 
-	w <- aso.trained.model$W.hat[,"primary"]
-	v <- aso.trained.model$V.hat[,"primary"]
+	w <- aso.trained.model$W.hat[,primary.problem]
+	v <- aso.trained.model$V.hat[,primary.problem]
 	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
