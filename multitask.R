@@ -9,8 +9,9 @@ aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.c
 	#if a cache exists for this value of lambda and with the provided name, load it
 	cachefile <- cache.filename(lambda, cache.name)
 	if(file.exists(cachefile) && use.cache && !recompute.cache && is.null(preloaded.cache)) {
+		print("loading the cache")
 		load(cachefile)
-		cache <- loaded.cache
+		cache <<- loaded.cache
 	}
 
 	#if a cache has been preloaded, use that
@@ -70,10 +71,10 @@ aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 
 
 cache.filename <- function(lambda, cache.name) {
-	filename <- "cache/"
-	filename <- paste(filename, cache.name, sep="")
+	filename <- cache.name
 	filename <- paste(filename, "-lambda", sep="")
 	filename <- paste(filename, lambda, sep="")
+	filename <- paste(filename, ".RData", sep="")
 	return(filename)
 }
 
@@ -96,7 +97,9 @@ add.to.cache <- function(x, y, problem.name, lambda) {
 	w.precomputed <- predict(fit, type= "coef", s = lambda)
 	w.precomputed <- w.precomputed[-1]
 	w.precomputed <- as.vector(w.precomputed)
-	cache[[problem.name]] <- w.precomputed
+
+	#must use different operator to change the global cache
+	cache[[problem.name]] <<- w.precomputed
 }
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
