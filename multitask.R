@@ -57,6 +57,7 @@ save.cache <- function() {
 }
 	
 aso.predict <- function(aso.trained.model, new.x, primary.problem) {
+	cat("Predicting for problem: ", primary.problem, "\n")
 	n.samples <- dim(new.x)[[2]]
 	n.features <- dim(new.x)[[1]]
 
@@ -83,7 +84,7 @@ w.min.cache <- function(x, y, problem.name, v, theta, lambda) {
 		add.to.cache(x, y, problem.name, lambda)
 	}
 	else {
-		cat("Retrieving ", problem.name, " from the cache.\n")
+		#cat("Retrieving ", problem.name, " from the cache.\n")
 	}
 	w.precomputed <- cache[[problem.name]]
 	w.new <- t(v) %*% theta
