@@ -3,25 +3,11 @@ source("../multitask/w-min-glm.R")
 library(glmnet)
 
 cache <- NULL
+cache.filename <- ""
 
-aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.cache = TRUE, cache.name = "default", preloaded.cache = NULL) {
-
-	#if a cache exists for this value of lambda and with the provided name, load it
-	cachefile <- cache.filename(lambda, cache.name)
-	if(file.exists(cachefile) && use.cache && !recompute.cache && is.null(preloaded.cache)) {
-		print("loading the cache")
-		load(cachefile)
-		cache <<- loaded.cache
-	}
-
-	#if a cache has been preloaded, use that
-	else if(use.cache && !is.null(preloaded.cache)) {
-		cache <- preloaded.cache
-	}
-
-	#if a cache doesn't exist, create it
-	else if(use.cache) {
-		cache <- list()
+aso.train <- function(x, y, h, iters, lambda = 1, use.cache = TRUE) {
+	if(use.cache && is.null(cache)) {
+		stop("Must load a cache first if use.cache is TRUE.")
 	}
 
 	n.problems <- length(x)  #number of total problems to minimize over, including the primary problem and all auxiliary problems
@@ -50,13 +36,26 @@ aso.train <- function(x, y, h, iters, lambda = 1, recompute.cache = FALSE, use.c
 		Theta.hat <- theta.min(u, n.features, n.problems, h)
 	}
 
-	#write the updated (or created) cache
-	if(use.cache) {
-		loaded.cache <- cache
-		save(loaded.cache, file=cachefile)
-	}
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 }
+load.cache <- function(filename) {
+	if(file.exists(filename)) {
+		print("Loading the specified cache.")
+		load(filename)
+		cache <<- loaded.cache
+	}
+	else {
+		print("Cache does not exist yet. Creating it.")
+		cache <<- list()
+	}
+	cache.filename <<- filename
+
+}
+save.cache <- function() {
+	loaded.cache <- cache
+	save(loaded.cache, file=cache.filename)
+}
+	
 aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 	n.samples <- dim(new.x)[[2]]
 	n.features <- dim(new.x)[[1]]
