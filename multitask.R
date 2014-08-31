@@ -68,6 +68,16 @@ aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
 }
+build.entire.cache <- function(x, y, lambda) {
+	n.problems <- length(x)
+	stopifnot(length(y) == n.problems)
+	for(i in 1:n.problems) {
+		problem.name <- names(x)[[i]]
+		add.to.cache(x[[problem.name]], y[[problem.name]], problem.name, lambda)
+	}
+}
+
+	
 
 
 cache.filename <- function(lambda, cache.name) {
