@@ -6,7 +6,7 @@ library(bigmemory)
 cache <- NULL
 cache.filename <- ""
 
-aso.train <- function(x, y, h, iters, lambda = 1, use.cache = TRUE, analytic = FALSE) {
+aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, use.cache = FALSE, analytic = FALSE) {
 	if(use.cache && is.null(cache)) {
 		stop("Must load a cache first if use.cache is TRUE.")
 	}
@@ -36,7 +36,6 @@ aso.train <- function(x, y, h, iters, lambda = 1, use.cache = TRUE, analytic = F
 		}
 		Theta.hat <- theta.min(u, n.features, n.problems, h)
 	}
-
 
 	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
 }
@@ -152,7 +151,7 @@ w.min.all.problems <- function(X, y, u, theta, use.cache, analytic, lambda) {
 			W.hat[, problem.name] <- w.min.out.cache
 		}
 		if(analytic) {
-			w.min.out <- w.min(X_l, y_l, v_l, theta)
+			w.min.out <- w.min.alternate(X_l, y_l, v_l, theta)
 			W.hat[, problem.name] <- w.min.out
 		}
 
@@ -172,8 +171,15 @@ theta.min <- function(u, f, m, h) {
 	}
 	return(new.theta)
 }
+w.min.alternate <- function(x, y, v, theta) {
+	n <- dim(X)[[1]]
+	I <- diag(n)
+	w <- solve(X %*% t(X) + I, X %*% y)
+	return(w)
+}
+	
 
-#finds minimum w-vector analytically for one prediction problem. x and y should be the l-th data matrix and the lth output. This is slow and should only be used for testing. 
+#finds minimum w-vector analytically for one prediction problem. x and y should be the l-th data matrix and the lth output. 
 w.min <- function(x, y, v, theta) {
 	print("w-min")
 	n <- dim(x)[[2]]  #the number of samples for this prediction problem
