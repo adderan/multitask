@@ -1,15 +1,9 @@
 source("../multitask/ando.R")
-source("../multitask/w-min-glm.R")
-library(glmnet)
-library(bigmemory)
 
 cache <- NULL
 cache.filename <- ""
 
-aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, use.cache = FALSE, ANALYTIC = FALSE) {
-	if(use.cache && is.null(cache)) {
-		stop("Must load a cache first if use.cache is TRUE.")
-	}
+aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE) {
 
 	n.problems <- length(x)  #number of total problems to minimize over, including the primary problem and all auxiliary problems
 	n.features <- dim(x[[1]])[[1]] #must use same set of features for all problems
@@ -25,7 +19,7 @@ aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, use.cache = FALSE, AN
 	
 	colnames(V.hat) <- names(x)
 	for(iter in 1:iters) {
-		W.hat <- w.min.all.problems(x, y, u, Theta.hat, use.cache, analytic, lambda)
+		W.hat <- w.min.all.problems(x, y, u, Theta.hat, ANALYTIC, lambda)
 		for(l in 1:n.problems) {
 			problem.name <- names(x)[[l]]
 			V.hat[,problem.name] <- Theta.hat %*% u[,problem.name]
@@ -44,27 +38,9 @@ aso.obj <- function(x, y, w, v, theta) {
 	mse <- mean((y.pred - y)^2)
 	return(mse)
 }
-
-load.cache <- function(filename, n.problems, n.features, problem.names) {
-	if(file.exists(filename)) {
-		print("Loading the specified cache.")
-		cache <<- read.big.matrix(filename)
-	}
-	else {
-		print("Cache does not exist yet. Creating it.")
-		cache <<- big.matrix(nrow = n.problems, ncol = n.features, shared=FALSE, dimnames = list(problem.names, list()), init = 0)
-		#rownames(cache) <- problem.names
-	}
-	cache.filename <<- filename
-
-}
-save.cache <- function() {
-	write.big.matrix(x= cache, filename = cache.filename, row.names = TRUE, col.names = TRUE)
-
-}
 	
 aso.predict <- function(aso.trained.model, new.x, primary.problem) {
-	cat("Predicting for problem: ", primary.problem, "\n")
+	#cat("Predicting for problem: ", primary.problem, "\n")
 	n.samples <- dim(new.x)[[2]]
 	n.features <- dim(new.x)[[1]]
 
@@ -75,55 +51,9 @@ aso.predict <- function(aso.trained.model, new.x, primary.problem) {
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
 }
-#aso.predict.vtheta.only <- function(aso.trained.model, new.x, primary.problem) {
-#	v <- aso.trained.model$V.hat[,primary.problem]
-#	theta <- aso.trained.model$Theta.hat
-#	y.pred <- t(w) %*% 
-	
-build.entire.cache <- function(x, y, lambda) {
-	n.problems <- length(x)
-	stopifnot(length(y) == n.problems)
-	for(i in 1:n.problems) {
-		problem.name <- names(x)[[i]]
-		add.to.cache(x[[problem.name]], y[[problem.name]], problem.name, lambda)
-	}
-}	
-
-
-cache.filename <- function(lambda, cache.name) {
-	filename <- cache.name
-	filename <- paste(filename, "-lambda", sep="")
-	filename <- paste(filename, lambda, sep="")
-	filename <- paste(filename, ".RData", sep="")
-	return(filename)
-}
-
-#add v * theta to the precomputed weight vector to use as minimum w-vector for this value of theta
-w.min.cache <- function(x, y, problem.name, v, theta, lambda) {
-	if(sum(cache[problem.name,]) == 0) {
-		add.to.cache(x, y, problem.name, lambda)
-	}
-	else {
-		#cat("Retrieving ", problem.name, " from the cache.\n")
-	}
-	w.precomputed <- cache[problem.name,]
-	w.new <- t(v) %*% theta
-	w <- w.precomputed - w.new
-	return(w)
-}
-add.to.cache <- function(x, y, problem.name, lambda) {
-	cat("Computing ", problem.name, " from scratch and adding it to the cache.\n")
-	fit <- glmnet(t(x), y, alpha = 0)
-	w.precomputed <- predict(fit, type= "coef", s = lambda)
-	w.precomputed <- w.precomputed[-1]
-	w.precomputed <- as.vector(w.precomputed)
-
-	#must use different operator to change the global cache
-	cache[problem.name,] <<- w.precomputed
-}
 
 #find the minimum w-vectors for each prediction problem, with a given theta. Returns the matrix. Assumes data is FxN 
-w.min.all.problems <- function(X, y, u, theta, use.cache, analytic, lambda) {
+w.min.all.problems <- function(X, y, u, theta, analytic, lambda) {
 	h <- dim(theta)[[1]]  #number of dimensions for the lower dimensional map.
 	m <- length(X) #number of prediction problems
  	f <- dim(X[[1]])[[1]] #number of features
@@ -142,14 +72,15 @@ w.min.all.problems <- function(X, y, u, theta, use.cache, analytic, lambda) {
 
 		#w.min.out <- w.min(X_l, y_l, v_l, theta)  #in test code, X[[l]] is n*p matrix, this code uses p*n
 
-		if(!use.cache && !analytic) {
+		if(!analytic) {
+			library(glmnet)
 			w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta, lambda)
 			W.hat[, problem.name] <- w.min.out.glm
 		}
-		if(use.cache) {
-			w.min.out.cache <- w.min.cache(X_l, y_l, problem.name, v_l, theta, lambda)
-			W.hat[, problem.name] <- w.min.out.cache
-		}
+		#if(use.cache) {
+		#	w.min.out.cache <- w.min.cache(X_l, y_l, problem.name, v_l, theta, lambda)
+		#	W.hat[, problem.name] <- w.min.out.cache
+		#}
 		if(analytic) {
 			w.min.out <- w.min.alternate(X_l, y_l, v_l, theta)
 			W.hat[, problem.name] <- w.min.out
@@ -215,3 +146,18 @@ w.min <- function(x, y, v, theta) {
 	return(w)
 }
 
+w.min.glm <- function(X, y, v, theta, lambda) {
+	#print(length(v))
+	#print(dim(theta))
+	#print(dim(X))
+	y.adjusted <- as.vector(y) - as.vector(t(v) %*% theta %*% X)
+	fit <- glmnet(x = t(X), y = y.adjusted, alpha = 0)
+
+	w <- predict(fit, type="coef", s = lambda)
+	w <- w[-1]
+	#print(rownames(w)[1:10])
+	#print(rownames(X)[1:10])
+	
+	return(w)
+}
+	
