@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-source("../multitask/aso.R")
-source("ssl-gray-setup.R")
+source("aso.R")
+source("examples/ssl-gray-setup.R")
 suppressMessages(library(glmnet))
 
 args <- commandArgs()
@@ -19,7 +19,7 @@ Y.answers <- partitioned.data$Y.answers
 
 n.drugs <- dim(Y)[[2]]
 n.samples <- dim(Y)[[1]]
-cat("Drug\tAuxiliary_Problem\tASO_Score\tglmnet_score\n")
+cat("Drug\tAuxiliary_Problem\tASO_base_score\tASO_Score\tglmnet_score\n")
 
 for(d in 1:n.drugs) {
 	drug <- colnames(Y)[[d]]
@@ -43,6 +43,14 @@ for(d in 1:n.drugs) {
 	glmnet.model <- glmnet(t(X.train), drug.response)
 	glmnet.predictions <- predict(glmnet.model, t(X.test), s = 0.1)
 
+	aso.base.X <- list()
+	aso.base.Y <- list()
+	aso.base.X[[drug]] <- X.train
+	aso.base.Y[[drug]] <- drug.response
+	aso.base.model <- aso.train(aso.base.X, aso.base.Y)
+	aso.base.predictions <- aso.predict(aso.base.model, X.test, drug)
+	aso.base.score <- cor(drug.answers, as.vector(aso.base.predictions), method = "spearman")
+
 
 	aux.gene.removed <- remove.auxiliary.gene(X.train, X.test, Xu, target)
 
@@ -65,6 +73,6 @@ for(d in 1:n.drugs) {
 	aso.score <- cor(drug.answers, as.vector(aso.predictions), method="spearman")
 	glmnet.score <- cor(drug.answers, as.vector(glmnet.predictions), method="spearman")
 	
-	cat(drug, "\t", target, "\t", aso.score, glmnet.score, "\n")
+	cat(drug, "\t", target, "\t", aso.base.score, aso.score, glmnet.score, "\n")
 }
 
