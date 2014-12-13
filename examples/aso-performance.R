@@ -29,7 +29,7 @@ for(d in 1:n.drugs) {
 	else {
 		next
 	}
-
+	#print(partitioned.data$Y.labels)
 
 	bad.data.removed <- remove.bad.data(partitioned.data$X.train, Y.labels, drug)
 	drug.response <- bad.data.removed$drug.response
@@ -52,24 +52,34 @@ for(d in 1:n.drugs) {
 	aso.base.score <- cor(drug.answers, as.vector(aso.base.predictions), method = "spearman")
 
 
-	aux.gene.removed <- remove.auxiliary.gene(X.train, X.test, Xu, target)
+	#aux.gene.removed <- remove.auxiliary.gene(X.train, X.test, Xu, target)
 
-	X.train.reduced <- aux.gene.removed$X.train
-	X.test.reduced <- aux.gene.removed$X.test
-	X.unlabeled.reduced <- aux.gene.removed$X.unlabeled
-	Y.aux <- aux.gene.removed$aux
+	#X.train.reduced <- aux.gene.removed$X.train
+	#X.test.reduced <- aux.gene.removed$X.test
+	#X.unlabeled.reduced <- aux.gene.removed$X.unlabeled
+	#Y.aux <- aux.gene.removed$aux
+
+	#Y.aux <- Xu[target,]
+	#Xu.reduced <- Xu
+	#Xu.reduced[target,] <- 0
 
 
 	aso.X <- list()
 	aso.Y <- list()
-	aso.X[[drug]] <- X.train.reduced
+	aso.X[[drug]] <- X.train
 	aso.Y[[drug]] <- drug.response
-	aso.X[[target]] <- X.unlabeled.reduced
-	aso.Y[[target]] <- Y.aux
-
-
+	#aso.X[[target]] <- Xu.reduced
+	#aso.Y[[target]] <- Y.aux
+	for (i in 1:5) {
+		Y.aux <- Xu[i,]
+		Xu.reduced <- Xu
+		Xu.reduced[target,] <- 0
+		aso.X[[as.character(i)]] <- Xu.reduced
+		aso.Y[[as.character(i)]] <- Y.aux
+	}
 	aso.model <- aso.train(aso.X, aso.Y)
-	aso.predictions <- aso.predict(aso.model, X.test.reduced, drug)
+
+	aso.predictions <- aso.predict(aso.model, X.test, drug)
 	aso.score <- cor(drug.answers, as.vector(aso.predictions), method="spearman")
 	glmnet.score <- cor(drug.answers, as.vector(glmnet.predictions), method="spearman")
 	
