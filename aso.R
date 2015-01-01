@@ -1,7 +1,4 @@
-source("ando.R")
 
-cache <- NULL
-cache.filename <- ""
 
 aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE) {
 
