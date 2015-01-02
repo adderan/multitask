@@ -1,6 +1,6 @@
 
 
-aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE) {
+aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE, primary) {
 
 	n.problems <- length(x)  #number of total problems to minimize over, including the primary problem and all auxiliary problems
 	n.features <- dim(x[[1]])[[1]] #must use same set of features for all problems
@@ -27,8 +27,10 @@ aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE) {
 		}
 		Theta.hat <- theta.min(u, n.features, n.problems, h)
 	}
+	w.primary <- w.min(x[[primary]], y[[primary]])
+	v.primary <- v.min(x[[primary]], y[[primary]], Theta.hat)
 
-	list(W.hat = W.hat, V.hat = V.hat, Theta.hat = Theta.hat)
+	list(Theta.hat = Theta.hat, W.hat = w.primary, V.hat = v.primary)
 }
 aso.obj <- function(x, y, w, v, theta) {
 	y.pred <- t(w) %*% x + t(v) %*% theta %*% x
@@ -36,14 +38,15 @@ aso.obj <- function(x, y, w, v, theta) {
 	return(mse)
 }
 	
-aso.predict <- function(aso.trained.model, new.x, primary.problem) {
+aso.predict <- function(aso.trained.model, new.x) {
 	#cat("Predicting for problem: ", primary.problem, "\n")
 	n.samples <- dim(new.x)[[2]]
 	n.features <- dim(new.x)[[1]]
 
-	w <- aso.trained.model$W.hat[,primary.problem]
-	v <- aso.trained.model$V.hat[,primary.problem]
+	w <- aso.trained.model$W.hat
+	v <- aso.trained.model$V.hat
 	theta <- aso.trained.model$Theta.hat
+
 	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
@@ -79,7 +82,7 @@ w.min.all.problems <- function(X, y, u, theta, analytic, lambda) {
 		#	W.hat[, problem.name] <- w.min.out.cache
 		#}
 		if(analytic) {
-			w.min.out <- w.min.alternate(X_l, y_l, v_l, theta)
+			w.min.out <- w.min(X_l, y_l)
 			W.hat[, problem.name] <- w.min.out
 		}
 
@@ -88,27 +91,31 @@ w.min.all.problems <- function(X, y, u, theta, analytic, lambda) {
 }
 #compute the singular value decomposition of a matrix containing the minimum u vectors for each prediction problem, as calculated by w_min. Return a new theta from the first h rows of the SVD. 
 theta.min <- function(u, f, m, h) {
-	#cat("Minimizing over ", dim(u), " auxiliary problem matrix.\n")
-	U <- matrix(1, f, m)
 	svd_of_U <- svd(u, nu = h, nv = 0)
  	v1 <- svd_of_U$u
 	new.theta <- matrix(0, nrow=h, ncol=f)
-
 	for(k in 1:h) {
 		new.theta[k,] <- t(v1)[k,]
 	}
 	return(new.theta)
 }
-w.min.alternate <- function(x, y, v, theta) {
+w.min <- function(x, y) {
 	n <- dim(x)[[1]]
 	I <- diag(n)
 	w <- solve(x %*% t(x) + I, x %*% y)
 	return(w)
 }
+v.min <- function(x, y, theta) {
+	n <- dim(x)[[1]]
+	I <- diag(n)
+	xtheta <- theta %*% x
+	v <- solve(xtheta %*% t(xtheta), xtheta %*% y)
+	return(v)
+}
 	
 
 #finds minimum w-vector analytically for one prediction problem. x and y should be the l-th data matrix and the lth output. 
-w.min <- function(x, y, v, theta) {
+w.min.old <- function(x, y, v, theta) {
 	print("w-min")
 	n <- dim(x)[[2]]  #the number of samples for this prediction problem
 	f <- dim(x)[[1]]  #the number of features. Features are the rows of the data matrix. 

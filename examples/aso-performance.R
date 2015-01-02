@@ -47,8 +47,8 @@ for(d in 1:n.drugs) {
 	aso.base.Y <- list()
 	aso.base.X[[drug]] <- X.train
 	aso.base.Y[[drug]] <- drug.response
-	aso.base.model <- aso.train(aso.base.X, aso.base.Y)
-	aso.base.predictions <- aso.predict(aso.base.model, X.test, drug)
+	aso.base.model <- aso.train(aso.base.X, aso.base.Y, primary = drug)
+	aso.base.predictions <- aso.predict(aso.base.model, X.test)
 	aso.base.score <- cor(drug.answers, as.vector(aso.base.predictions), method = "spearman")
 
 
@@ -77,9 +77,9 @@ for(d in 1:n.drugs) {
 		aso.X[[as.character(i)]] <- Xu.reduced
 		aso.Y[[as.character(i)]] <- Y.aux
 	}
-	aso.model <- aso.train(aso.X, aso.Y)
+	aso.model <- aso.train(aso.X, aso.Y, primary = drug)
 
-	aso.predictions <- aso.predict(aso.model, X.test, drug)
+	aso.predictions <- aso.predict(aso.model, X.test)
 	aso.score <- cor(drug.answers, as.vector(aso.predictions), method="spearman")
 	glmnet.score <- cor(drug.answers, as.vector(glmnet.predictions), method="spearman")
 	
