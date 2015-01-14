@@ -1,5 +1,5 @@
 
-
+library(glmnet)
 aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE, primary) {
 
 	n.problems <- length(x)  #number of total problems to minimize over, including the primary problem and all auxiliary problems
@@ -27,10 +27,14 @@ aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE, prim
 		}
 		Theta.hat <- theta.min(u, n.features, n.problems, h)
 	}
-	w.primary <- w.min(x[[primary]], y[[primary]])
-	v.primary <- v.min(x[[primary]], y[[primary]], Theta.hat)
+	w.primary.out <- w.min.glm(x[[primary]], y[[primary]], lambda)
+	v.primary.out <- v.min.glm(x[[primary]], y[[primary]], Theta.hat, lambda)
+	w.primary <- w.primary.out$w
+	v.primary <- v.primary.out$v
+	intercept <- -1*w.primary.out$intercept - v.primary.out$intercept
+	#v.primary <- V.hat[,primary]
 
-	list(Theta.hat = Theta.hat, W.hat = w.primary, V.hat = v.primary)
+	list(Theta.hat = Theta.hat, W.hat = w.primary, V.hat = v.primary, intercept = intercept)
 }
 aso.obj <- function(x, y, w, v, theta) {
 	y.pred <- t(w) %*% x + t(v) %*% theta %*% x
@@ -47,7 +51,7 @@ aso.predict <- function(aso.trained.model, new.x) {
 	v <- aso.trained.model$V.hat
 	theta <- aso.trained.model$Theta.hat
 
-	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x
+	y.pred <- t(w) %*% new.x + t(v) %*% theta %*% new.x + aso.trained.model$intercept
 	stopifnot(length(y.pred) == n.samples)
 	return(y.pred)
 }
@@ -74,7 +78,7 @@ w.min.all.problems <- function(X, y, u, theta, analytic, lambda) {
 
 		if(!analytic) {
 			library(glmnet)
-			w.min.out.glm <- w.min.glm(X_l, y_l, v_l, theta, lambda)
+			w.min.out.glm <- w.min.glm(X_l, y_l, lambda)
 			W.hat[, problem.name] <- w.min.out.glm
 		}
 		#if(use.cache) {
@@ -109,7 +113,10 @@ v.min <- function(x, y, theta) {
 	n <- dim(x)[[1]]
 	I <- diag(n)
 	xtheta <- theta %*% x
-	v <- solve(xtheta %*% t(xtheta), xtheta %*% y)
+	h <- dim(xtheta)[[1]]
+	#print(xtheta, file = sys.stderr)
+	v <- try(solve(xtheta %*% t(xtheta), xtheta %*% y))
+	if(class(v) == "try-error") {return(rep(NA,times=h)) }
 	return(v)
 }
 	
@@ -150,18 +157,26 @@ w.min.old <- function(x, y, v, theta) {
 	return(w)
 }
 
-w.min.glm <- function(X, y, v, theta, lambda) {
+w.min.glm <- function(X, y, lambda) {
 	#print(length(v))
 	#print(dim(theta))
 	#print(dim(X))
-	y.adjusted <- as.vector(y) - as.vector(t(v) %*% theta %*% X)
-	fit <- glmnet(x = t(X), y = y.adjusted, alpha = 0)
+	fit <- glmnet(x = t(X), y = y, alpha = 0)
 
 	w <- predict(fit, type="coef", s = lambda)
+	intercept <- w[1]
 	w <- w[-1]
 	#print(rownames(w)[1:10])
 	#print(rownames(X)[1:10])
 	
-	return(w)
+	return(list(w = w, intercept = intercept))
+}
+v.min.glm <- function(x, y, theta, lambda) {
+	xtheta <- theta %*% x
+	fit <- glmnet(x = t(xtheta), y = y, alpha = 0)
+	v <- predict(fit, type = "coef", s = lambda)
+	intercept <- v[1]
+	v <- v[-1]
+	return(list(v = v, intercept = intercept))
 }
 	

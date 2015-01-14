@@ -1,0 +1,125 @@
+\documentclass{article}
+\usepackage{caption}
+\usepackage{amssymb,amsmath}
+\usepackage{graphicx}
+\begin{document}
+\title{Alternating Structure Optimization on Drug Response Data}
+\maketitle
+\section{Method}
+Alternating Structure Optimization (ASO) involves minimizing the following function over multiple prediction problems:
+\begin{equation}
+F = \sum\limits_{k} \sum\limits_{i}
+(W_k^TX_i + V_k^T\theta X_i - y_i)^2 + |W_k|^2 
+\end{equation}
+
+
+
+where $k$ runs over all prediction problems and $i$ over all samples within each problem. The optimization is with respect to $W$ and $V$ for each problem and with respect to $\theta$ over all $k$ problems. If there are $n$ samples available, each with feature vector $X_i$ and response $y_i$, then the vectors $W_k$ and $V_k$ are length $p$ and $h$, and $\theta$ is a $p$ by $h$ matrix, where $h$ is a parameter of the model and $p$ is the number of features. The parameter $h$ can be interpreted as the number of features in the shared prediction space for all of the problems. 
+ 
+The assumption of this method is that the multiple optimization problems are related in such a way that learning predictors for one problem could be beneficial to learning predictors for the other problems. This means that the method could take advantage of unlabeled data by assigning labels to it and attempted to predict those labels as an auxiliary problem. Provided that the assigned labels are relevant to the primary prediction problem, the method could do better than it would with just the labeled data. The matrix $\theta$ can be optimized over both the main prediction problem (using the labeled data) and the auxiliary prediction problem (using the unlabeled data). 
+
+\par
+The optimal values for $W_k$, $V_k$ and $\theta$ can be found with the following procedure:
+\begin{enumerate}
+	\item Iterate the following until convergence:
+	\begin{enumerate}
+		\item Initialize $\theta$ to arbitrary random value. Define $u_k$ = 0, $length(u_k) = p$ for all $k$.
+		\item For each prediction problem:
+		\begin{enumerate}
+			\item Set $V_k = \theta u_k$
+			\item Minimize F with respect to $W_k$ with $\theta$ and $V_k$ fixed:
+			\begin{equation} W_k = (XX^T + I)^{-1}Xy \end{equation}
+			\item Let $u_k = W_k + \theta ^T V$
+		\end{enumerate}
+		\item Form a $p$ by $m$ matrix $U$ whose columns are the vectors $u_k$. Find
+		the singular value decomposition of $U$, yielding three matrices: $V_1$, $M$,
+		and $V_2^T$ representing the left-singular vectors, the singular values, and the
+		right-singular vectors of the matrix $U$. Set $\theta$ to the transpose of the
+		first $h$ columns of $V_1$.
+	\end{enumerate}
+	\item Using $\theta$ computed in the last step, compute $W$ and $V$ for the primary
+	problem: \begin{equation} W = (XX^T + I)^{-1}Xy, V = (ZZ^T + I)^{-1} Zy \end{equation}
+	where $Z = \theta X$. Or, use numerical gradient descent to optimize for $W$ and
+	$V$.
+\end{enumerate}
+Once $W$, $V$, and $\theta$ are optimum, the prediction for a new sample with feature vector
+$X^{new}_i$ is given by:
+\begin{equation} y_i = W^TX^{new}_i + V^T\theta X^{new}_i \end{equation}
+\section{Results}
+The drug response data used to test this method contains 576 samples, 45 of which have
+corresponding drug response scores for 74 drugs. All the samples have 5000 gene expression 
+levels for the same set of genes. Therefore, 74 different prediction problems are
+possible, each with 5000 available features.
+\par
+The labeled data was divided into a training set of 22
+samples ($X^{train}, y^{train}$) and a test set of 23 samples $X^{test}, y^{test}$. One gene from the unlabeled dataset ($X^{\mu})$ was 
+used as an auxiliary prediction problem for each drug, so that the ASO $\theta$ matrix
+could be optimized over two problems:
+\begin{enumerate}
+\item The primary problem: predict drug response $y_d^{train}$ of drug $d$ using the 5000x22 training gene
+expression matrix $X^{train}$.
+\item The auxiliary problem: predict gene expression levels $X_{g}^{\mu}$ 
+by using unlabeled gene expression matrix $X^{\mu}$, where
+$g$ is one of the 5000 genes. The levels of gene $g$ are set to zero in the
+expression matrix so that it can't be used to predict itself.
+\end{enumerate}
+A natural choice for gene $g$ is one whose expression is altered by the drug
+whose response is being predicted. The performance of the method with this choice
+of $g$ is shown in Table 1. The method is scored by computing the Spearman
+Rank Correlation between the predicted drug response and the measured drug
+response $y^{test}_d$. For comparison, scores for ASO with no auxiliary problems, and
+scores for glmnet (an R package for linear regression) are provided for the same
+training and test data. In these experiments, step 2 of the optimization procedure
+was done with gradient descent.
+
+\begin{table}[h]
+\caption{Scores for ASO with no auxiliary problems (ASO\_base), ASO with the drug target as an auxiliary problem (ASO\_aux), and glmnet. Both glmnet and ASO\_base use no unlabeled data. All scores are Spearman Rank Correlations. The average scores over all drugs are 0.237, 0.242, and 0.174 for ASO\_base, ASO\_aux, and glmnet respectively.}
+
+
+\begin{tabular}{llllll}
+   & Drug         & Drug\_target & ASO\_base\_score & ASO\_aux\_score  & glmnet\_score \\
+   1  & 17-AAG       & HSP90AA1           & 0.3238247        & 0.3217489   & 0.3539238     \\
+   2  & 5-FdUR       & TYMS               & 0.4716202        & 0.4798762   & 0.2982456     \\
+   3  & 5-FU         & TYMS               & -0.07692308      & -0.05934066 & -0.243956     \\
+   4  & AG1024       & IGF1R              & 0.1896639        & 0.2799366   & 0.1604848     \\
+   5  & AG1478       & EGFR               & -0.05571095      & -0.1135242  & -0.2491225    \\
+   6  & BIBW2992     & EGFR               & 0.3321429        & 0.3035714   & 0.2821429     \\
+   7  & Bortezomib   & PSMD2              & -0.09362817      & -0.09882973 & -0.06111839   \\
+   8  & Docetaxel    & TUBB1              & 0.1667398        & 0.135147    & 0.1658622     \\
+   9  & Doxorubicin  & TOP2A              & -0.2548334       & -0.2776806  & -0.05799657   \\
+   10 & Epirubicin   & TOP2A              & -0.04545457      & -0.03099175 & 0.1353307     \\
+   11 & Erlotinib    & EGFR               & 0.4116356        & 0.3874662   & 0.3172238     \\
+   12 & Etoposide    & TOP2A              & 0.7672058        & 0.7491539   & 0.638586      \\
+   13 & Fascaplysin  & CDK4               & 0.1414598        & 0.1053424   & 0.2189617     \\
+   14 & Geldanamycin & HSP90AA1           & 0.1438596        & 0.06842105  & 0.1912281     \\
+   15 & Gemcitabine  & TYMS               & 0.3117647        & 0.3382353   & 0.1764706     \\
+   16 & Lapatinib    & EGFR               & 0.5722535        & 0.6429991   & 0.8065001     \\
+   17 & GSK1070916   & AURKB              & 0.4676692        & 0.4842105   & 0.437594      \\
+   18 & GSK1838705   & IGF1R              & -0.1571939       & -0.08444301 & 0.3169861     \\
+   19 & GSK461364    & PLK1               & 0.4437759        & 0.4317413   & 0.1368936     \\
+   20 & ICRF-193     & TOP2A              & 0.4666795        & 0.5066806   & 0.2459327     \\
+   21 & Gefitinib    & EGFR               & 0.2853381        & 0.3292363   & 0.4679545     \\
+   22 & LBH589       & HDAC4              & 0.1802575        & 0.2133661   & 0.8730842     \\
+   23 & Lestaurtinib & FLT3               & 0.4828431        & 0.497549    & 0.1544118     \\
+   24 & NU6102       & CCNB1              & 0.1920496        & 0.2870419   & 0.2343831     \\
+   25 & Oxamflatin   & HDAC4              & 0.1475748        & 0.1517028   & -0.005159959  \\
+   26 & Paclitaxel   & TUBB1              & -0.0596753       & -0.08073717 & -0.08336991   \\
+   27 & PD173074     & FGFR3              & 0.3340693        & 0.3958794   & 0.2752024     \\
+   28 & Pemetrexed   & TYMS               & 0.2133812        & 0.1725877   & -0.1945534    \\
+   29 & Vorinostat   & HDAC6              & 0.5029241        & 0.4795323   & -0.03638727   \\
+   30 & SB-3CT       & MMP2               & 0.5036166        & 0.4590158   & -0.3568058    \\
+   31 & Sorafenib    & KDR                & 0.02105263       & 0.06466165  & -0.118797     \\
+   32 & Tamoxifen    & ESR1               & 0.1449505        & 0.1136662   & 0.03858395    \\
+   33 & Vinorelbine  & TUBB               & 0.1933058        & 0.2098533   & 0.05791651    \\
+   34 & VX-680       & AURKA              & 0.3911711        & 0.3911711   & 0.3519314    
+\end{tabular}
+\end{table}
+
+\begin{figure}
+\caption{Dependence of ASO score on the parameter $h$, with drug target as the auxiliary problem.}
+\includegraphics{../examples/graphs/h-dependence.pdf}
+\end{figure}
+
+
+
+\end{document}
