@@ -1,20 +1,37 @@
-
+##implementation of Ando and Zhang's Alternating Structure Optimization.
 library(glmnet)
+
+#Trains ASO over a list of training data and response vectors.
+#The parameters x and y should be lists, such that x[[problem.name]] is
+#a matrix of training data and y[[problem.name]] is the corresponding response
+#vector. The features should be the same for all problems. The structural
+#matrix will be optimized over all problems, and the W and V vectors will
+#be optimized for the primary problem after the optimal Theta has been found. An
+#object containing the optimal vectors is returned.
 aso.train <- function(x, y, h = 10, iters = 3, lambda = 1, ANALYTIC = TRUE, primary) {
 
-	n.problems <- length(x)  #number of total problems to minimize over, including the primary problem and all auxiliary problems
+	#number of total problems to minimize over, 
+	#including the primary problem and all auxiliary problems
+	n.problems <- length(x)  
 	n.features <- dim(x[[1]])[[1]] #must use same set of features for all problems
 	stopifnot(n.problems == length(y))
 	
-	u <- matrix(rep(0, times = n.features*n.problems), n.features, n.problems) #each column will contain the sum w + v*theta
-	colnames(u) <- names(x)
+	#The combined weight vector (W + V*theta), represented as a matrix
+	#(n.features x n.problems), where each column is the weight vector 
+	#for one of the problems.
+	u <- matrix(rep(0, times = n.features*n.problems), n.features, n.problems)
+	 
+	colnames(u) <- names(x) #set the colnames to the problem names
 	rownames(u) <- rownames(x[[1]])
 
-	Theta.hat <- matrix(runif(h*n.features), h, n.features)  #the structural matrix, shared between all problems, that will be minimized.
+	#the structural matrix, shared between all problems, initially random.
+	Theta.hat <- matrix(runif(h*n.features), h, n.features)  
 	W.hat <- matrix(0, n.features, n.problems)  #the high-dimensional weight vector
 	V.hat <- matrix(0, h, n.problems)  #the low-dimensional weight vector
 	
 	colnames(V.hat) <- names(x)
+	
+	#optimize theta and W alternately
 	for(iter in 1:iters) {
 		W.hat <- w.min.all.problems(x, y, u, Theta.hat, ANALYTIC, lambda)
 		for(l in 1:n.problems) {
@@ -41,7 +58,10 @@ aso.obj <- function(x, y, w, v, theta) {
 	mse <- mean((y.pred - y)^2)
 	return(mse)
 }
-	
+
+#Takes the optimal weight vectors and Theta matrix
+#produced by aso.train, and a new data matrix. Predicts
+#the response for each sample in the new matrix.
 aso.predict <- function(aso.trained.model, new.x) {
 	#cat("Predicting for problem: ", primary.problem, "\n")
 	n.samples <- dim(new.x)[[2]]
