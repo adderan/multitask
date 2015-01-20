@@ -5,8 +5,8 @@ source("ssl-gray-setup.R")
 
 args <- commandArgs()
 datafile <- args[6]
-drug <- args[7]
-auxiliary <- args[8]
+#drug.aux <- args[7]
+#auxiliary <- args[8]
 load(datafile)
 
 
